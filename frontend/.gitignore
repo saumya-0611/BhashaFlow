@@ -23,3 +23,47 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# =========================
+# Python & AI-Engine
+# =========================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments (CRITICAL)
+venv/
+.venv/
+env/
+.env/
+build/
+develop-eggs/
+eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyTorch / Machine Learning models (Don't push heavy weights to Git!)
+*.pt
+*.pth
+*.onnx
+*.h5
+
+# =========================
+# OS & Testing
+# =========================
+# Windows image cache
+Thumbs.db
+ehthumbs.db
+
+# Test coverage reports (Node/Python)
+coverage/
+.nyc_output/
+.tox/
+.coverage
+htmlcov/
