@@ -23,7 +23,7 @@ pipeline {
     post {
         failure {
             echo 'Build failed! Sending email alert...'
-            mail to: "${env.TECH_LEAD_EMAIL}",
+            emailext to: "${env.TECH_LEAD_EMAIL}",
                  subject: "🚨 BhashaFlow Build Failed: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
                  body: """
                  Team! The latest push broke the BhashaFlow pipeline.
