@@ -80,3 +80,32 @@ Because we removed live volumes to keep our Jenkins CI/CD pipeline stable, you m
 
 * ❌ **`docker-compose up`**: Only use this if you are resuming work and haven't typed any new code or pulled from GitHub. It boots the *old* image.
 * ✅ **`docker-compose up --build`**: Use this **99% of the time**. If you wrote new code, added an npm package, or ran `git pull`, you MUST add `--build` to package your new changes into the container.
+
+## CONFLICTS SCENARIOS (IMPOERTANT FOR US)
+
+The 3 Common Conflict Scenarios (How it happens in real life)
+Here is how conflicts will actually happen in your BhashaFlow project:
+
+## Scenario 1: The "Same Line" Clash (Most Common)
+The Setup: Two frontend developers are working on GrievanceForm.jsx.
+
+**Teammate A**: Changes the submit button on line 45 to be bg-blue-500 and pushes their PR. You merge it.
+**Teammate B**: Doesn't pull the latest updates. On their laptop, line 45 still has the old button. They change it to bg-green-500 and push their PR.
+
+**The Conflict**: When Teammate B tries to merge, GitHub stops them. Git says, "Wait! Line 45 is blue in the main database, but green in your branch. I can't do both."
+
+## Scenario 2: The "Ghost File" Conflict
+The Setup: The AI/ML Engineer and Backend Developer are updating the translation logic.
+
+**The AI Engineer**: Realizes old_translator.py is garbage. They delete it, create new_translator.py, and merge their code into main.
+**The Backend Dev**: At the exact same time, they were writing a new API route inside old_translator.py. They push their PR.
+
+**The Conflict**: Git panics. "The Backend Dev wants to add a function to a file that the AI Engineer just deleted! Should I bring the file back to life, or delete the new function?"
+
+## Scenario 3: The package.json Collision (Dependency Hell)
+The Setup: Two people install different NPM packages at the exact same time.
+
+**Teammate A**: Runs ``npm install framer-motion``. Node adds it to line 12 of package.json.
+**Teammate B**: Runs ``npm install axios``. Node also tries to add it to line 12 of their package.json.
+
+**The Conflict**: When they both push, Git sees two completely different libraries fighting for line 12.
