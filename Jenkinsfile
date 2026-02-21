@@ -9,7 +9,7 @@ pipeline {
         }
         stage('Build Docker Images') {
             steps {
-                sh 'docker-compose builddd'
+                sh 'docker-compose build'
             }
         }
         stage('Test & Run') {
