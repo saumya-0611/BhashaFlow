@@ -4,4 +4,5 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 EXPOSE 3000
-CMD ["npm", "run", "dev"] 
+# Crucial: Vite needs --host to expose the network outside the container
+CMD ["npm", "run", "dev", "--", "--host"]
