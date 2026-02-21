@@ -1,6 +1,68 @@
-## suppose 2 person want to edit the frontened part at once then?
+# 🧑‍💻 Team Coding Workflow & Guidelines
 
-If two developers want to build different parts of the React frontend at the exact same time, they do not edit the same live file. Instead, they use a workflow called Branching.
+Welcome to the development phase of the BhashaFlow project! Now that our Docker architecture and Jenkins CI/CD pipeline are fully operational, here is exactly how we will write, test, and push code every day.
+
+## 🏗️ 1. The Golden Rule: Use Docker, Not Local Installs
+You **do not** need to install Node.js, Python, or MongoDB on your computer. All of our environments are containerized. 
+* To run the project, you only need Git, Docker Desktop, and VS Code.
+
+## 🌅 2. The Daily Routine (How to Start Your Day)
+Whenever you sit down to code, follow these exact steps to ensure you are working on the latest version:
+
+1. **Get the Latest Code:**
+   ```bash
+   git checkout main
+   git pull origin main
+
+2. **Create Your Feature Branch:**
+ Never write code directly on the main branch. Create a "parallel universe" for your specific task:
+
+```bash
+git checkout -b feature/name-of-your-feature
+```
+(Example: git checkout -b feature/citizen-login-ui)
+
+3. **Boot Up the Factory:**
+```bash
+docker-compose up
+```
+## 💻 3. Writing Code (The Magic of Volumes)
+Because we are using Docker Volumes, you do not need to restart the server every time you save a file. * If you edit backend/server.js or ai-engine/main.py and hit Ctrl + S, Docker will automatically hot-reload the changes inside the running container.
+
+Simply refresh your browser to see your updates instantly!
+
+## 📦 4. Installing New Packages (The --build Exception)
+If you need to install a new library (e.g., a new React component or a new Python ML tool), you must update the "shopping list" and force Docker to rebuild:
+
+Add the package to frontend/package.json, backend/package.json, or ai-engine/requirements.txt.
+
+Stop your running containers (Ctrl + C in the terminal).
+
+Run the build command:
+
+```bash
+docker-compose up --build
+```
+
+## 🚀 5. Finishing Your Feature (Pushing to Jenkins)
+When your code is working perfectly on your local machine, it's time to send it to the pipeline:
+Stop your containers (Ctrl + C).
+Stage and commit your code:
+
+```bash
+git add .
+git commit -m "feat: description of what I built"
+Push your branch to GitHub:
+```
+
+```bash
+git push origin feature/name-of-your-feature
+```
+Create a Pull Request (PR): Go to GitHub and open a PR to merge your branch into main. Once Saumya approves it, the Jenkins automated pipeline will build and test the official production version.
+
+## What if suppose 2 person want to edit the frontened part at once then?
+
+DO Branching
 
 ## Step 1: Create Separate Branches
 Instead of working on the main branch (which is the official, stable version Jenkins uses), they both pull the latest code and create their own isolated workspaces (branches) on their local laptops.
@@ -24,14 +86,4 @@ Then, they go to GitHub and click "Create Pull Request". A Pull Request (PR) is 
 
 Once approve it, GitHub merges the Login Page into main. Jenkins sees this, builds the Docker containers, and updates the official app.
 
-## Step 4: Developer B Merges
-A few hours later, Developer B finishes the Grievance Form. They push their branch and create a Pull Request.
-GitHub is incredibly smart. It looks at Developer B's code and seamlessly stitches it together with Developer A's Login Page code inside the main branch.
-
-The Big Question: What if they edit the EXACT same line of code?
-Suppose Developer A and Developer B both edited line 42 of frontend/src/App.jsx at the same time.
-
-When Developer B tries to merge their Pull Request, GitHub will throw a Merge Conflict. It will essentially say: "Wait! Both of you changed line 42. I am a robot, I don't know which one is the correct one."
-
-How you fix it:
-GitHub will highlight the exact file and show you both versions side-by-side. You (or the developers) simply look at it, delete the version you don't want, keep the one you do, and click "Resolve Conflict." Then the code merges safely.
+---
