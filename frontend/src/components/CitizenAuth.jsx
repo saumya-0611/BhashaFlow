@@ -1,6 +1,7 @@
 import axios from "axios";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from 'react-router-dom'; // 1. Add this import
 
 /* ═══════════════════════════════════════════════════════
    GLOBAL STYLES
@@ -420,6 +421,7 @@ export default function CitizenAuth() {
   const [sConf,  setSConf]  = useState("");
   const [showP,  setShowP]  = useState(false);
   const [showC,  setShowC]  = useState(false);
+  const navigate = useNavigate();
 
   const onLogin = async (e) => {
     e.preventDefault();
@@ -428,11 +430,15 @@ export default function CitizenAuth() {
         email: lEmail,
         password: lPass,
       });
-      console.log("LOGIN SUCCESS →", response.data);
-      alert("Welcome back, Citizen!");
+      
+      if (response.status === 200) {
+        console.log("LOGIN SUCCESS");
+        // 3. Redirect to the dashboard!
+        navigate('/dashboard'); 
+      }
     } catch (err) {
-      console.error("LOGIN ERROR →", err.response?.data || err.message);
-      alert("Login failed. Check your credentials.");
+      console.error("LOGIN ERROR", err);
+      alert("Invalid credentials");
     }
   };
 
