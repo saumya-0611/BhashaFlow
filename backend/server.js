@@ -21,7 +21,12 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/api/auth', authRoutes);
 
 app.get('/', (req, res) => {
-    res.json({ message: 'BhashaFlow Backend is running and connected to DB!' });
+    res.status(200).json({ 
+        status: 'online',
+        service: 'BhashaFlow Backend',
+        message: 'BhashaFlow Backend is running and connected to DB!',
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    });
 });
 
 app.listen(PORT, () => {
