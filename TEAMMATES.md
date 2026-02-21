@@ -26,64 +26,57 @@ git checkout -b feature/name-of-your-feature
 ```bash
 docker-compose up
 ```
-## 💻 3. Writing Code (The Magic of Volumes)
-Because we are using Docker Volumes, you do not need to restart the server every time you save a file. * If you edit backend/server.js or ai-engine/main.py and hit Ctrl + S, Docker will automatically hot-reload the changes inside the running container.
 
-Simply refresh your browser to see your updates instantly!
+📦 3. Writing Code & The "Suitcase" Architecture
+To ensure our Jenkins CI/CD pipeline never fails due to missing files, we use Immutable Images. This means we pack our code like a suitcase during the build process, rather than relying on live local folders.
 
-## 📦 4. Installing New Packages (The --build Exception)
-If you need to install a new library (e.g., a new React component or a new Python ML tool), you must update the "shopping list" and force Docker to rebuild:
-
-Add the package to frontend/package.json, backend/package.json, or ai-engine/requirements.txt.
-
-Stop your running containers (Ctrl + C in the terminal).
-
-Run the build command:
+When you change code or add new packages: You MUST repack your suitcase. Stop your running containers (Ctrl + C in the terminal) and run:
 
 ```bash
 docker-compose up --build
 ```
+This ensures your latest code is baked into the container, exactly how Jenkins will see it.
 
-## 🚀 5. Finishing Your Feature (Pushing to Jenkins)
+Database Data: The only exception is MongoDB. We use a dedicated volume for the database in our docker-compose file, so your test users and grievances will NOT be deleted when you restart Docker.
+
+🚀 4. Finishing Your Feature (Pushing to Jenkins)
 When your code is working perfectly on your local machine, it's time to send it to the pipeline:
+
 Stop your containers (Ctrl + C).
+
 Stage and commit your code:
 
 ```bash
 git add .
 git commit -m "feat: description of what I built"
-Push your branch to GitHub:
 ```
+Push your branch to GitHub:
 
 ```bash
 git push origin feature/name-of-your-feature
 ```
-Create a Pull Request (PR): Go to GitHub and open a PR to merge your branch into main. Once Saumya approves it, the Jenkins automated pipeline will build and test the official production version.
+Create a Pull Request (PR): Go to GitHub and open a PR to merge your branch into main. Once the Tech Lead (Saumya) approves it, the Jenkins automated pipeline will build and test the official production version.
 
-## What if suppose 2 person want to edit the frontened part at once then?
-
-DO Branching
+🔀 Handling Concurrent Work (Two People, Same Repo)
+What if two people want to edit the frontend part at once? We Branch!
 
 ## Step 1: Create Separate Branches
-Instead of working on the main branch (which is the official, stable version Jenkins uses), they both pull the latest code and create their own isolated workspaces (branches) on their local laptops.
+Instead of working on the main branch (which is the official, stable version Jenkins uses), both developers pull the latest code and create their own isolated workspaces (branches) on their local laptops.
 
-**Developer A types:** git checkout -b feature/login-page
-**Developer B types:** git checkout -b feature/grievance-form
+Developer A types: git checkout -b feature/login-page
+
+Developer B types: git checkout -b feature/grievance-form
 
 ## Step 2: Code in Complete Isolation
-Now, they both run docker-compose up on their respective laptops.
-Because Docker runs locally, Developer A's React app runs on their localhost:3000, and Developer B's React app runs on their localhost:3000.
-They can both install new packages, write code, and completely break their own apps without affecting the other person at all.
+Now, they both run docker-compose up --build on their respective laptops. Because Docker runs locally, Developer A's app runs on their localhost:3000, and Developer B's app runs on their own localhost:3000. They can both install new packages, write code, and completely break their own apps without affecting the other person at all!
 
 ## Step 3: Push and Pull Request (PR)
-When Developer A finishes the Login Page, they push their specific branch to GitHub:
-```bash
-git add .
-git commit -m "feat: built the citizen login UI"
-git push origin feature/login-page 
-```
-Then, they go to GitHub and click "Create Pull Request". A Pull Request (PR) is basically asking the Tech Lead (you!): "Hey, I finished this feature in my parallel universe. Can we merge it into the official main universe?"
+When Developer A finishes the Login Page, they push their specific branch to GitHub and create a Pull Request. A PR is basically asking the Tech Lead: "Hey, I finished this feature in my parallel universe. Can we merge it into the official main universe?"
 
-Once approve it, GitHub merges the Login Page into main. Jenkins sees this, builds the Docker containers, and updates the official app.
+Once approved, GitHub merges the Login Page into main. Jenkins sees this, builds the Docker containers, and updates the official app automatically.
 
----
+## ⚠️ The Difference Between "up" and "up --build"
+Because we removed live volumes to keep our Jenkins CI/CD pipeline stable, you must understand how to start your servers:
+
+* ❌ **`docker-compose up`**: Only use this if you are resuming work and haven't typed any new code or pulled from GitHub. It boots the *old* image.
+* ✅ **`docker-compose up --build`**: Use this **99% of the time**. If you wrote new code, added an npm package, or ran `git pull`, you MUST add `--build` to package your new changes into the container.

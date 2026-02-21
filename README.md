@@ -1,5 +1,3 @@
-# BhashaFlow
-
 # 🇮🇳 BhashaFlow: Multilingual GenAI for Citizen Social Grievances
 
 **NIIT University B.Tech CSE Capstone Project**
@@ -13,20 +11,20 @@
 ---
 
 ## 🛠️ Tech Stack & Architecture
-This project utilizes a modern microservices architecture. It is fully containerized using Docker and automated via a continuous Jenkins CI/CD pipeline.
+This project utilizes a modern microservices architecture. It is fully containerized using Docker and automated via a continuous Jenkins CI/CD pipeline using **Immutable Images** for ultimate stability.
 
 ### 1. Frontend (Port `3000`)
-* **Core:** React.js powered by Vite.
+* **Core:** React.js powered by Vite (Node 20).
 * **UI/UX:** Framer Motion for dynamic animations, TailwindCSS/CSS for responsive design.
 * **Role:** Citizen submission portal and Authority status dashboard.
 
 ### 2. Backend API (Port `5000`)
-* **Core:** Node.js, Express.js.
+* **Core:** Node.js, Express.js (Node 20).
 * **Database:** MongoDB (via Mongoose).
 * **Role:** REST API routing, user authentication, handling file uploads (Multer), and forwarding data to the AI Engine.
 
 ### 3. AI Engine (Port `8000`)
-* **Core:** Python, FastAPI.
+* **Core:** Python 3.11, FastAPI.
 * **AI/ML:** LangChain, EasyOCR, Indic NLP Library, PyTorch, HuggingFace Transformers.
 * **Role:** Extracts text from images/audio, translates regional Indian languages to English, and utilizes LLMs to generate actionable grievance summaries.
 
@@ -38,9 +36,9 @@ This project utilizes a modern microservices architecture. It is fully container
 ---
 
 ## 👥 Team & Roles
-* **Frontend Developer:**  - `frontend/` directory.
-* **Backend Developer:** - `backend/` directory.
-* **AI/ML Engineer:**  - `ai-engine/` directory.
+* **Frontend Developer:** [Name] - `frontend/` directory.
+* **Backend Developer:** [Name] - `backend/` directory.
+* **AI/ML Engineer:** [Name] - `ai-engine/` directory.
 * **Tech Lead / DevOps:** Saumya Srivastava - CI/CD pipeline, Docker architecture, and cross-service integration.
 
 ---
@@ -55,10 +53,10 @@ Ensure you have the following installed on your laptop:
 2. [Docker Desktop](https://www.docker.com/products/docker-desktop/) *(Ensure it is running in the background before proceeding)*
 3. VS Code (or your preferred code editor)
 
-### Step 2: Clone the Repository
+### Step 2: Clone the Repository & Setup Environment
 Open your terminal and run:
 ```bash
-git clone https://github.com/saumya-0611/BhashaFlow.git
+git clone [https://github.com/saumya-0611/BhashaFlow.git](https://github.com/saumya-0611/BhashaFlow.git)
 cd BhashaFlow
 ```
 ### Step 3: Start the Application Environment
@@ -93,3 +91,40 @@ Node.js (Port 5000) receives it, saves a pending record in MongoDB, and then pri
 Python (Port 8000) receives the text, runs Indic NLP and LangChain to translate and summarize it, and sends the English JSON summary back to Node.js.
 
 Node.js updates the database and sends a "Success" message back to the React frontend.
+
+
+## 🚀 Jenkins CI/CD Pipeline (Immutable Deployment)
+
+This project uses a **Jenkins Pipeline** to automate the build, test, and deployment process. The pipeline ensures consistency and reliability by using **Immutable Images**.
+
+### Pipeline Stages
+
+1.  **Checkout**: Fetches the latest code from the GitHub repository.
+2.  **Build Frontend**: Builds the React application and creates a Docker image.
+3.  **Build Backend**: Builds the Node.js backend and creates a Docker image.
+4.  **Build AI Engine**: Builds the Python AI engine and creates a Docker image.
+5.  **Deploy**: Stops the existing containers and starts new ones using the newly built images.
+
+### Accessing the Application
+
+Once the Jenkins pipeline completes successfully, you can access the application at:
+
+-   **Frontend UI**: http://localhost:3000
+-   **Backend API**: http://localhost:5000
+-   **AI Engine API**: http://localhost:8000
+
+### ⚠️ Troubleshooting
+
+**"Port is already allocated" Error**: If Docker complains that a port is already in use, it means a previous instance of the application is still running. Stop the conflicting service before starting the pipeline.
+
+**Pipeline Failed**: If the pipeline fails, check the logs for the specific stage that failed. Common issues include:
+
+-   Network connectivity issues between containers.
+-   Port conflicts.
+-   Errors in the application code.
+
+Create your local environment variables file by copying the template:
+
+```bash
+cp .env.example .env
+```
