@@ -14,7 +14,14 @@ pipeline {
         }
         stage('Test & Run') {
             steps {
-                // In the future, you will add testing scripts here
+                // 1. Generate the .env file on the Jenkins server dynamically
+                sh '''
+                echo "MONGO_URI=mongodb://mongodb:27017/bhashaflow" > .env
+                echo "JWT_SECRET=SaumyaBhashaFlowSecret2026" >> .env
+                echo "PORT=5000" >> .env
+                '''
+                
+                // 2. Now run docker-compose (it will successfully find the .env file!)
                 sh 'docker-compose up -d'
             }
         }
