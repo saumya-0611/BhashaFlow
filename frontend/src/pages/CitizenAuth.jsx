@@ -433,6 +433,10 @@ export default function CitizenAuth() {
       
       if (response.status === 200) {
         console.log("LOGIN SUCCESS");
+
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('userName', response.data.user.name);
+        
         // 3. Redirect to the dashboard!
         navigate('/dashboard'); 
       }

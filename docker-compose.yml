@@ -16,6 +16,8 @@ services:
     build: ./backend
     ports:
       - "5000:5000"
+    env_file:
+      - ./.env
     # Removed code volume to prevent Jenkins path errors.
     environment:
       - MONGO_URI=mongodb://mongodb:27017/bhashaflow

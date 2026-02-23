@@ -1,6 +1,26 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            // Kick them back to the login page if they have no token
+            navigate('/'); // Change this to '/auth' if your login route is different
+        }
+    }, [navigate]);
+
+    const handleLogout = () => {
+        // Clear the secure tokens from the browser
+        localStorage.removeItem('token');
+        localStorage.removeItem('userName');
+        
+        // Redirect back to the login page
+        navigate('/auth');
+    };
+
     // ─── 1. ARCHITECTURE STATE (The Wireframe Skeleton) ───
     const [grievances, setGrievances] = useState([]); // Starts empty!
     const [backendStatus, setBackendStatus] = useState("Checking..."); 
@@ -9,6 +29,7 @@ export default function Dashboard() {
     const [grievanceText, setGrievanceText] = useState("");
     const [uploadedFile, setUploadedFile] = useState(null);
     const fileRef = useRef(null);
+    
 
     // ─── 2. LIVE HEALTH CHECK (Simulating Node.js connection) ───
     useEffect(() => {
@@ -56,11 +77,27 @@ export default function Dashboard() {
             </div>
 
             {/* ─── HEADER ─── */}
-            <div style={{ marginBottom: "30px" }}>
-                <h1 style={{ color: "#fff", fontSize: "28px", textShadow: "0 0 15px rgba(255,153,51,0.3)" }}>
-                    BhashaFlow Command Center
-                </h1>
-                <p style={{ color: "#94a3b8", fontSize: "14px" }}>Multilingual AI Grievance Routing Prototype</p>
+            <div style={{ marginBottom: "30px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                    <h1 style={{ color: "#fff", fontSize: "28px", textShadow: "0 0 15px rgba(255,153,51,0.3)" }}>
+                        BhashaFlow Command Center
+                    </h1>
+                    <p style={{ color: "#94a3b8", fontSize: "14px" }}>Multilingual AI Grievance Routing Prototype</p>
+                </div>
+                
+                {/* ─── LOGOUT BUTTON ─── */}
+                <button 
+                    onClick={handleLogout}
+                    style={{
+                        padding: "8px 16px", borderRadius: "6px", border: "1px solid #f87171",
+                        background: "rgba(248,113,113,0.1)", color: "#f87171", fontWeight: "bold",
+                        cursor: "pointer", transition: "all 0.2s"
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = "rgba(248,113,113,0.2)"}
+                    onMouseLeave={(e) => e.target.style.background = "rgba(248,113,113,0.1)"}
+                >
+                    Logout
+                </button>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px" }}>
