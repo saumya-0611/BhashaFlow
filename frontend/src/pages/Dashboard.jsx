@@ -1,175 +1,124 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import DashboardLayout from '../components/DashboardLayout';
+import './Dashboard.css';
 
 export default function Dashboard() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const userName = localStorage.getItem('userName') || 'Citizen';
 
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            // Kick them back to the login page if they have no token
-            navigate('/'); // Change this to '/auth' if your login route is different
-        }
-    }, [navigate]);
+  useEffect(() => {
+    if (!localStorage.getItem('token')) navigate('/auth');
+  }, [navigate]);
 
-    const handleLogout = () => {
-        // Clear the secure tokens from the browser
-        localStorage.removeItem('token');
-        localStorage.removeItem('userName');
-        
-        // Redirect back to the login page
-        navigate('/auth');
-    };
+  // Demo data matching the Stitch design
+  const stats = [
+    { label: 'Total Grievances', value: '24', icon: 'description', color: 'primary' },
+    { label: 'In Progress', value: '08', icon: 'pending', color: 'secondary' },
+    { label: 'Resolved', value: '16', icon: 'check_circle', color: 'success' },
+  ];
 
-    // ─── 1. ARCHITECTURE STATE (The Wireframe Skeleton) ───
-    const [grievances, setGrievances] = useState([]); // Starts empty!
-    const [backendStatus, setBackendStatus] = useState("Checking..."); 
-    const [aiStatus, setAiStatus] = useState("STANDBY"); 
-    
-    const [grievanceText, setGrievanceText] = useState("");
-    const [uploadedFile, setUploadedFile] = useState(null);
-    const fileRef = useRef(null);
-    
+  const grievances = [
+    { id: 1, title: 'Pothole near Residency Road', dept: 'Public Works', status: 'In Progress', date: '2 days ago', severity: 'High' },
+    { id: 2, title: 'Street Light Faulty - Zone 4', dept: 'Electricity Board', status: 'In Progress', date: '3 days ago', severity: 'Medium' },
+    { id: 3, title: 'Water Supply Disruption', dept: 'Water Management', status: 'Resolved', date: '5 days ago', severity: 'High' },
+    { id: 4, title: 'Waste Collection Delay', dept: 'Sanitation', status: 'Resolved', date: '1 week ago', severity: 'Low' },
+  ];
 
-    // ─── 2. LIVE HEALTH CHECK (Simulating Node.js connection) ───
-    useEffect(() => {
-        // In the next step, we will wire this to your actual Node.js backend
-        setTimeout(() => {
-            setBackendStatus("CONNECTED");
-        }, 1500);
-    }, []);
-
-    // ─── 3. AI PIPELINE TRIGGER ───
-    const runAiFramework = (e) => {
-        e.preventDefault();
-        if (!grievanceText && !uploadedFile) {
-            alert("Please provide text or a document to test the AI pipeline.");
-            return;
-        }
-
-        setAiStatus("CONNECTING TO PORT 8000...");
-        console.log("System: Handshaking with BhashaFlow AI-Engine (FastAPI)...");
-        
-        setTimeout(() => {
-            setAiStatus("ANALYZING (OCR & NLP)...");
-            setTimeout(() => setAiStatus("STANDBY"), 3000);
-        }, 1500);
-    };
-
-    return (
-        <div style={{ minHeight: "100vh", background: "#010b1f", color: "#e2e8f0", fontFamily: "sans-serif", padding: "20px" }}>
-            
-            {/* ─── SYSTEM STATUS BAR (Shows off your DevOps architecture) ─── */}
-            <div style={{ 
-                background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,153,51,0.2)", 
-                borderRadius: "8px", padding: "12px 20px", display: "flex", gap: "24px",
-                fontSize: "12px", fontWeight: "bold", letterSpacing: "1px", marginBottom: "30px" 
-            }}>
-                <span style={{ color: backendStatus === "CONNECTED" ? "#34d399" : "#fbbf24" }}>
-                    ● NODE.JS BACKEND: {backendStatus}
-                </span>
-                <span style={{ color: "#60a5fa" }}>
-                    ● MONGODB: ACTIVE
-                </span>
-                <span style={{ color: aiStatus === "STANDBY" ? "#f87171" : "#FF9933" }}>
-                    ● AI ENGINE (FASTAPI): {aiStatus}
-                </span>
-            </div>
-
-            {/* ─── HEADER ─── */}
-            <div style={{ marginBottom: "30px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                    <h1 style={{ color: "#fff", fontSize: "28px", textShadow: "0 0 15px rgba(255,153,51,0.3)" }}>
-                        BhashaFlow Command Center
-                    </h1>
-                    <p style={{ color: "#94a3b8", fontSize: "14px" }}>Multilingual AI Grievance Routing Prototype</p>
-                </div>
-                
-                {/* ─── LOGOUT BUTTON ─── */}
-                <button 
-                    onClick={handleLogout}
-                    style={{
-                        padding: "8px 16px", borderRadius: "6px", border: "1px solid #f87171",
-                        background: "rgba(248,113,113,0.1)", color: "#f87171", fontWeight: "bold",
-                        cursor: "pointer", transition: "all 0.2s"
-                    }}
-                    onMouseEnter={(e) => e.target.style.background = "rgba(248,113,113,0.2)"}
-                    onMouseLeave={(e) => e.target.style.background = "rgba(248,113,113,0.1)"}
-                >
-                    Logout
-                </button>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px" }}>
-                
-                {/* ─── LEFT: SUBMISSION PORTAL ─── */}
-                <div style={{ 
-                    background: "rgba(5,12,28,0.8)", border: "1px solid rgba(255,255,255,0.1)", 
-                    borderRadius: "12px", padding: "24px" 
-                }}>
-                    <h3 style={{ marginBottom: "15px", color: "#FF9933" }}>File New Grievance (Test Input)</h3>
-                    
-                    <textarea 
-                        value={grievanceText}
-                        onChange={(e) => setGrievanceText(e.target.value)}
-                        placeholder="Type a grievance in any Indian language to test the pipeline..."
-                        style={{ 
-                            width: "100%", height: "120px", padding: "12px", borderRadius: "8px", 
-                            background: "rgba(0,0,0,0.5)", color: "#fff", border: "1px solid #334155",
-                            marginBottom: "15px", resize: "none"
-                        }}
-                    />
-
-                    <div 
-                        onClick={() => fileRef.current?.click()}
-                        style={{ 
-                            border: "2px dashed #475569", borderRadius: "8px", padding: "20px", 
-                            textAlign: "center", cursor: "pointer", marginBottom: "20px",
-                            background: uploadedFile ? "rgba(52,211,153,0.1)" : "transparent"
-                        }}
-                    >
-                        <input type="file" ref={fileRef} style={{ display: "none" }} onChange={(e) => setUploadedFile(e.target.files[0])} />
-                        <span style={{ color: uploadedFile ? "#34d399" : "#94a3b8" }}>
-                            {uploadedFile ? `Attached: ${uploadedFile.name}` : "+ Attach Document for OCR (JPG, PDF)"}
-                        </span>
-                    </div>
-
-                    <button 
-                        onClick={runAiFramework}
-                        style={{ 
-                            width: "100%", padding: "14px", borderRadius: "8px", border: "none",
-                            background: "linear-gradient(90deg, #FF9933, #e07010)", 
-                            color: "#fff", fontWeight: "bold", cursor: "pointer",
-                            boxShadow: "0 4px 15px rgba(255,153,51,0.3)"
-                        }}
-                    >
-                        {aiStatus === "STANDBY" ? "Run AI Pipeline (Test Mode)" : "Processing..."}
-                    </button>
-                </div>
-
-                {/* ─── RIGHT: EMPTY STATE FEED ─── */}
-                <div>
-                    <h3 style={{ marginBottom: "15px", color: "#e2e8f0" }}>Live Database Feed</h3>
-                    
-                    {grievances.length === 0 ? (
-                        // Professional Empty State UX
-                        <div style={{ 
-                            border: "1px dashed #475569", borderRadius: "12px", padding: "60px 20px", 
-                            textAlign: "center", background: "rgba(255,255,255,0.02)"
-                        }}>
-                            <div style={{ fontSize: "40px", marginBottom: "15px" }}>📭</div>
-                            <h4 style={{ color: "#e2e8f0", marginBottom: "8px" }}>No grievances found</h4>
-                            <p style={{ color: "#94a3b8", fontSize: "14px", lineHeight: "1.5" }}>
-                                The MongoDB database is currently empty. <br/>
-                                Use the portal on the left to submit a test document and trigger the AI classification engine.
-                            </p>
-                        </div>
-                    ) : (
-                        <div>{/* Real cards will map here later */}</div>
-                    )}
-                </div>
-
-            </div>
+  return (
+    <DashboardLayout>
+      {/* Hero Greeting */}
+      <section className="dash-hero">
+        <div>
+          <h1 className="dash-welcome">
+            Welcome back, <span className="name-highlight">{userName}.</span>
+          </h1>
+          <p className="dash-sub">Your voice matters. Monitoring your civic contributions and concerns.</p>
         </div>
-    );
+        <Link to="/submit" className="btn btn-primary">
+          <span className="material-symbols-outlined">add</span>
+          File New Grievance
+        </Link>
+      </section>
+
+      {/* Stat Cards */}
+      <section className="dash-stats">
+        {stats.map(s => (
+          <div key={s.label} className={`stat-card card stat-${s.color}`}>
+            <div className="stat-icon-wrap">
+              <span className="material-symbols-outlined filled">{s.icon}</span>
+            </div>
+            <span className="stat-label">{s.label}</span>
+            <span className="stat-value">{s.value}</span>
+          </div>
+        ))}
+      </section>
+
+      {/* Main Grid */}
+      <div className="dash-grid">
+        {/* Left: Recent Grievances */}
+        <section className="dash-section">
+          <div className="section-header">
+            <h2>Recent My Grievances</h2>
+            <Link to="#" className="btn btn-tertiary">View All</Link>
+          </div>
+          <div className="grievance-list">
+            {grievances.map(g => (
+              <Link to={`/grievance/${g.id}`} key={g.id} className="grievance-card card">
+                <div className="grievance-card-top">
+                  <h3 className="grievance-title">{g.title}</h3>
+                  <span className={`chip ${g.status === 'Resolved' ? 'chip-success' : 'chip-warning'}`}>
+                    {g.status}
+                  </span>
+                </div>
+                <div className="grievance-card-bottom">
+                  <span className="grievance-dept">
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>account_balance</span>
+                    Department: {g.dept}
+                  </span>
+                  <span className="grievance-date">{g.date}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Right: Insights & Guidance */}
+        <aside className="dash-aside">
+          <div className="insight-card card surface-low">
+            <div className="insight-header">
+              <span className="material-symbols-outlined filled" style={{ color: 'var(--saffron)' }}>psychology</span>
+              <h3>AI Powered Insights</h3>
+            </div>
+            <p>
+              Based on your history, the <strong>Electricity Board</strong> typically resolves issues in your area within <strong>3 days</strong>. Your pending street light grievance is expected to be resolved by tomorrow.
+            </p>
+          </div>
+
+          <div className="guidance-card card surface-low">
+            <div className="insight-header">
+              <span className="material-symbols-outlined filled" style={{ color: 'var(--emerald)' }}>menu_book</span>
+              <h3>Need Guidance?</h3>
+            </div>
+            <p>Access the official BhashaFlow handbook for step-by-step grievance filing.</p>
+            <button className="btn btn-outline" style={{ marginTop: 'var(--space-4)' }}>
+              <span className="material-symbols-outlined">open_in_new</span>
+              View Handbook
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {/* Footer */}
+      <footer className="page-footer">
+        <div className="footer-brand">BhashaFlow</div>
+        <p className="footer-tagline">Empowering citizens through transparent governance.</p>
+        <div className="footer-links">
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+          <a href="#">Contact Support</a>
+        </div>
+      </footer>
+    </DashboardLayout>
+  );
 }

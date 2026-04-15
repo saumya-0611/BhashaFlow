@@ -1,0 +1,207 @@
+/* ═══════════════════════════════════════════════════════
+   CITIZEN DASHBOARD
+   ═══════════════════════════════════════════════════════ */
+
+.dash-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-10);
+}
+
+.dash-welcome {
+  font-family: var(--font-display);
+  font-size: var(--headline-lg);
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: var(--space-2);
+}
+
+.name-highlight {
+  color: var(--on-surface);
+}
+
+.dash-sub {
+  font-size: var(--body-md);
+  color: var(--on-surface-variant);
+}
+
+/* Stat Cards */
+.dash-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  margin-bottom: var(--space-10);
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-8);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+.stat-primary::after { background: var(--primary-container); }
+.stat-secondary::after { background: var(--saffron); }
+.stat-success::after { background: var(--emerald); }
+
+.stat-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-primary .stat-icon-wrap {
+  background: var(--primary-fixed);
+  color: var(--primary);
+}
+.stat-secondary .stat-icon-wrap {
+  background: var(--secondary-fixed);
+  color: var(--secondary);
+}
+.stat-success .stat-icon-wrap {
+  background: var(--tertiary-fixed);
+  color: var(--emerald);
+}
+
+.stat-label {
+  font-size: var(--label-md);
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: var(--display-sm);
+  font-weight: 800;
+  color: var(--on-surface);
+}
+
+/* Grid */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: var(--space-8);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+
+.section-header h2 {
+  font-family: var(--font-display);
+  font-size: var(--title-lg);
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.grievance-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.grievance-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow var(--duration-medium), transform var(--duration-medium);
+}
+
+.grievance-card:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+.grievance-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.grievance-title {
+  font-family: var(--font-display);
+  font-size: var(--title-sm);
+  font-weight: 600;
+  color: var(--on-surface);
+}
+
+.grievance-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.grievance-dept {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--body-sm);
+  color: var(--on-surface-variant);
+}
+
+.grievance-date {
+  font-size: var(--label-sm);
+  color: var(--outline);
+}
+
+/* Aside */
+.dash-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.insight-card,
+.guidance-card {
+  padding: var(--space-6);
+}
+
+.insight-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.insight-header h3 {
+  font-family: var(--font-display);
+  font-size: var(--title-sm);
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.insight-card p,
+.guidance-card p {
+  font-size: var(--body-sm);
+  color: var(--on-surface-variant);
+  line-height: 1.7;
+}
+
+@media (max-width: 1000px) {
+  .dash-stats { grid-template-columns: 1fr; }
+  .dash-grid { grid-template-columns: 1fr; }
+}
