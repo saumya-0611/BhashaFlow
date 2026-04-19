@@ -1,4 +1,34 @@
-node_modules/
+# ── Environment & Secrets ──────────────────────────────
 .env
-*.log
+.env.local
+.env.*.local
+
+# ── Node.js ────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+
+# ── Python ─────────────────────────────────────────────
 __pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── Docker ─────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── OS & Editor ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Uploads & Media ────────────────────────────────────
+uploads/
+*.mp3
+*.wav
+*.mp4
+*.jpg
+*.jpeg
+*.png
+*.pdf

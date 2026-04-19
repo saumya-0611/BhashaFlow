@@ -1,10 +1,4 @@
 services:
-  mongodb:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db  # <--- KEEP THIS! This is the "Important" Job B.
 
   frontend:
     build: ./frontend
@@ -20,16 +14,11 @@ services:
       - ./.env
     # Removed code volume to prevent Jenkins path errors.
     environment:
-      - MONGO_URI=mongodb://mongodb:27017/bhashaflow
-    depends_on:
-      - mongodb
+      - MONGO_URI=${MONGO_URI}
 
   ai-engine:
     build: ./ai-engine
     ports:
       - "8000:8000"
     environment:
-      - SARVAM_API_KEY=${SARVAM_API_KEY:-sk_zb404k2p_ABzC39DCgfc5iMaxenps1gic}
-
-volumes:
-  mongo_data: # <--- KEEP THIS! It saves your database data.
+      - SARVAM_API_KEY=${SARVAM_API_KEY}
