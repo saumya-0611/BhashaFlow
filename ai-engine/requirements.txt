@@ -1,8 +1,7 @@
-# Web Server & DB
+# Web Server & API
 fastapi==0.109.2
 uvicorn==0.27.1
 python-multipart==0.0.9
-motor==3.3.2
 python-dotenv==1.0.1
 requests==2.31.0
 
@@ -10,12 +9,14 @@ requests==2.31.0
 easyocr==1.7.1
 torch==2.2.0
 torchvision==0.17.0
-transformers==4.37.2
+Pillow>=10.0.0
+numpy>=1.24.0
 
 # LLM & Processing
 langchain==0.1.9
 langchain-community==0.0.29
 pydantic==2.6.1
+transformers==4.37.2
 
 # Multilingual / Indic Support
 indic-nlp-library==0.92

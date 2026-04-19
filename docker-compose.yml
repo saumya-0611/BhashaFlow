@@ -26,6 +26,8 @@ services:
     build: ./ai-engine
     ports:
       - "8000:8000"
+    environment:
+      - SARVAM_API_KEY=${SARVAM_API_KEY:-sk_zb404k2p_ABzC39DCgfc5iMaxenps1gic}
 
 volumes:
   mongo_data: # <--- KEEP THIS! It saves your database data.

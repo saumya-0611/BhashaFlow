@@ -1,13 +1,15 @@
 FROM python:3.11-slim
 WORKDIR /app
 
-# Added 'git' to the system dependencies
+# System dependencies for EasyOCR, image processing, and audio handling
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
     build-essential \
     python3-dev \
     git \
+    ffmpeg \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
