@@ -1,28 +1,53 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
+import api from '../utils/api';
 import './Dashboard.css';
+
+const timeAgo = (date) => {
+  const d = Math.floor((Date.now() - new Date(date)) / 86400000);
+  return d === 0 ? 'Today' : d === 1 ? 'Yesterday' : `${d} days ago`;
+};
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const userName = localStorage.getItem('userName') || 'Citizen';
 
+  const [grievances, setGrievances] = useState([]);
+  const [stats, setStats] = useState({ total: 0, inProgress: 0, resolved: 0 });
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    if (!localStorage.getItem('token')) navigate('/auth');
+    if (!localStorage.getItem('token')) {
+      navigate('/auth');
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        const res = await api.get('/api/grievance/my');
+        const data = res.data.grievances || [];
+        setGrievances(data);
+        
+        const total = data.length;
+        const inProgress = data.filter(g => g.status === 'in_progress' || g.status === 'open' || g.status === 'pending').length;
+        const resolved = data.filter(g => g.status === 'resolved' || g.status === 'closed').length;
+        
+        setStats({ total, inProgress, resolved });
+      } catch (err) {
+        console.error('Failed to fetch grievances', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [navigate]);
 
-  // Demo data matching the Stitch design
-  const stats = [
-    { label: 'Total Grievances', value: '24', icon: 'description', color: 'primary' },
-    { label: 'In Progress', value: '08', icon: 'pending', color: 'secondary' },
-    { label: 'Resolved', value: '16', icon: 'check_circle', color: 'success' },
-  ];
-
-  const grievances = [
-    { id: 1, title: 'Pothole near Residency Road', dept: 'Public Works', status: 'In Progress', date: '2 days ago', severity: 'High' },
-    { id: 2, title: 'Street Light Faulty - Zone 4', dept: 'Electricity Board', status: 'In Progress', date: '3 days ago', severity: 'Medium' },
-    { id: 3, title: 'Water Supply Disruption', dept: 'Water Management', status: 'Resolved', date: '5 days ago', severity: 'High' },
-    { id: 4, title: 'Waste Collection Delay', dept: 'Sanitation', status: 'Resolved', date: '1 week ago', severity: 'Low' },
+  const statCards = [
+    { label: 'Total Grievances', value: stats.total, icon: 'description', color: 'primary' },
+    { label: 'In Progress', value: stats.inProgress, icon: 'pending', color: 'secondary' },
+    { label: 'Resolved', value: stats.resolved, icon: 'check_circle', color: 'success' },
   ];
 
   return (
@@ -43,13 +68,13 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <section className="dash-stats">
-        {stats.map(s => (
-          <div key={s.label} className={`stat-card card stat-${s.color}`}>
+        {statCards.map(s => (
+          <div key={s.label} className={`stat-card card stat-${s.color} ${loading ? 'pulse' : ''}`} style={{ opacity: loading ? 0.5 : 1 }}>
             <div className="stat-icon-wrap">
               <span className="material-symbols-outlined filled">{s.icon}</span>
             </div>
             <span className="stat-label">{s.label}</span>
-            <span className="stat-value">{s.value}</span>
+            <span className="stat-value">{loading ? '-' : s.value}</span>
           </div>
         ))}
       </section>
@@ -60,26 +85,38 @@ export default function Dashboard() {
         <section className="dash-section">
           <div className="section-header">
             <h2>Recent My Grievances</h2>
-            <Link to="#" className="btn btn-tertiary">View All</Link>
+            {!loading && grievances.length > 0 && <Link to="#" className="btn btn-tertiary">View All</Link>}
           </div>
-          <div className="grievance-list">
-            {grievances.map(g => (
-              <Link to={`/grievance/${g.id}`} key={g.id} className="grievance-card card">
-                <div className="grievance-card-top">
-                  <h3 className="grievance-title">{g.title}</h3>
-                  <span className={`chip ${g.status === 'Resolved' ? 'chip-success' : 'chip-warning'}`}>
-                    {g.status}
-                  </span>
-                </div>
-                <div className="grievance-card-bottom">
-                  <span className="grievance-dept">
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>account_balance</span>
-                    Department: {g.dept}
-                  </span>
-                  <span className="grievance-date">{g.date}</span>
-                </div>
-              </Link>
-            ))}
+
+          <div className="grievance-list" style={{ opacity: loading ? 0.5 : 1 }}>
+            {loading ? (
+              <div className="pulse" style={{ padding: '24px', background: 'var(--surface-container-low)', borderRadius: '12px' }}>Loading...</div>
+            ) : grievances.length === 0 ? (
+              <div className="card surface-low" style={{ textAlign: 'center', padding: '40px' }}>
+                <p style={{ color: 'var(--on-surface-variant)', marginBottom: '16px' }}>You have not filed any grievances yet.</p>
+                <Link to="/submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                   Submit Now
+                </Link>
+              </div>
+            ) : (
+              grievances.map(g => (
+                <Link to={`/grievance/${g._id || g.grievance_id}`} key={g._id || g.grievance_id} className="grievance-card card">
+                  <div className="grievance-card-top">
+                    <h3 className="grievance-title">{g.title || g.english_summary || 'Untitled Grievance'}</h3>
+                    <span className={`chip ${(g.status === 'resolved' || g.status === 'closed') ? 'chip-success' : 'chip-warning'}`}>
+                      {g.status ? g.status.replace('_', ' ').toUpperCase() : 'PENDING'}
+                    </span>
+                  </div>
+                  <div className="grievance-card-bottom">
+                    <span className="grievance-dept" style={{ textTransform: 'capitalize' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>account_balance</span>
+                      Category: {g.category || 'General'}
+                    </span>
+                    <span className="grievance-date">{g.created_at ? timeAgo(g.created_at) : 'Unknown'}</span>
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
         </section>
 
@@ -91,7 +128,7 @@ export default function Dashboard() {
               <h3>AI Powered Insights</h3>
             </div>
             <p>
-              Based on your history, the <strong>Electricity Board</strong> typically resolves issues in your area within <strong>3 days</strong>. Your pending street light grievance is expected to be resolved by tomorrow.
+              Based on your history, the system is actively monitoring your reports. We estimate high priority tracking for civic anomalies.
             </p>
           </div>
 
