@@ -15,9 +15,12 @@ services:
       - MONGO_URI=${MONGO_URI}
       - JWT_SECRET=${JWT_SECRET}
       - PORT=5000
-      - GMAIL_USER=saumyasrivastava611@gmail.com
+      - GMAIL_USER=${GMAIL_USER}
       - GMAIL_PASS=${GMAIL_PASS}
-      - TECH_LEAD_EMAIL=saumyasrivastava611@gmail.com
+      - TECH_LEAD_EMAIL=${TECH_LEAD_EMAIL}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
 
   ai-engine:
     build: ./ai-engine
