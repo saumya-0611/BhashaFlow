@@ -4,7 +4,6 @@ services:
     build: ./frontend
     ports:
       - "3000:3000"
-    # Removed code volume to prevent Jenkins path errors.
 
   backend:
     build: ./backend
@@ -12,19 +11,20 @@ services:
       - "5000:5000"
     env_file:
       - ./.env
-    # Removed code volume to prevent Jenkins path errors.
     environment:
       - MONGO_URI=${MONGO_URI}
       - JWT_SECRET=${JWT_SECRET}
       - PORT=5000
-      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_USER=saumyasrivastava611@gmail.com
       - GMAIL_PASS=${GMAIL_PASS}
-      - TECH_LEAD_EMAIL=${TECH_LEAD_EMAIL}
+      - TECH_LEAD_EMAIL=saumyasrivastava611@gmail.com
 
   ai-engine:
     build: ./ai-engine
     ports:
       - "8000:8000"
+    env_file:
+      - ./.env
     environment:
       - SARVAM_API_KEY=${SARVAM_API_KEY}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
