@@ -13,6 +13,12 @@ import os
 
 SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 
+# ═══════════════════════════════════════════════════════════════════
+#  GEMINI CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
 SARVAM_HEADERS = {
     "api-subscription-key": SARVAM_API_KEY,
     "Content-Type": "application/json",
