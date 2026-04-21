@@ -1,118 +1,165 @@
-import axios from "axios";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import api from '../utils/api';
 import './CitizenAuth.css';
 
-export default function CitizenAuth() {
-  const [mode, setMode] = useState("login");
-  const [lEmail, setLEmail] = useState("");
-  const [lPass, setLPass] = useState("");
-  const [showL, setShowL] = useState(false);
-  const [sName, setSName] = useState("");
-  const [sEmail, setSEmail] = useState("");
-  const [sPass, setSPass] = useState("");
-  const [sConf, setSConf] = useState("");
-  const [showP, setShowP] = useState(false);
-  const [showC, setShowC] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+// ── Animation variants ──────────────────────────────────────────
+const pageVariants = {
+  initial: { opacity: 0, y: 24 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] } },
+  exit:    { opacity: 0, y: -16, transition: { duration: 0.25 } },
+};
 
+const formVariants = {
+  enter: (dir) => ({ opacity: 0, x: dir === "login" ? -30 : 30 }),
+  show:  { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
+  exit:  (dir) => ({ opacity: 0, x: dir === "login" ? 30 : -30, transition: { duration: 0.25 } }),
+};
+
+export default function CitizenAuth() {
+  const [mode, setMode]     = useState("login");
+  const [lEmail, setLEmail] = useState("");
+  const [lPass, setLPass]   = useState("");
+  const [showL, setShowL]   = useState(false);
+  const [sName, setSName]   = useState("");
+  const [sEmail, setSEmail] = useState("");
+  const [sPass, setSPass]   = useState("");
+  const [sConf, setSConf]   = useState("");
+  const [showP, setShowP]   = useState(false);
+  const [showC, setShowC]   = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [oauthError, setOauthError] = useState("");
+
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Show error if Google OAuth failed (redirected with ?error=oauth_failed)
+  useEffect(() => {
+    if (searchParams.get('error') === 'oauth_failed') {
+      setOauthError('Google sign-in failed. Please try again or use email/password.');
+    }
+  }, [searchParams]);
+
+  // ── Helpers ────────────────────────────────────────────────────
+  const saveSession = (data) => {
+    localStorage.setItem('token',    data.token);
+    localStorage.setItem('userName', data.user.name);
+    localStorage.setItem('userRole', data.user.role);
+  };
+
+  const redirectByRole = (role) => {
+    if (role === 'authority' || role === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
+  // ── Login ──────────────────────────────────────────────────────
   const onLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post("http://localhost:5000/api/auth/login", {
-        email: lEmail, password: lPass,
-      });
-      if (response.status === 200) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('userName', response.data.user.name);
-        navigate('/dashboard');
-      }
+      const { data } = await api.post('/api/auth/login', { email: lEmail, password: lPass });
+      saveSession(data);
+      redirectByRole(data.user.role);
     } catch (err) {
-      console.error("LOGIN ERROR", err);
-      alert("Invalid credentials");
+      alert(err.response?.data?.message || "Invalid credentials");
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Register ───────────────────────────────────────────────────
   const onSignup = async (e) => {
     e.preventDefault();
     if (sPass !== sConf) { alert("Passwords don't match"); return; }
     setLoading(true);
     try {
-      await axios.post("http://localhost:5000/api/auth/register", {
-        name: sName, email: sEmail, password: sPass,
-      });
-      alert("Success! Now please Sign In.");
+      await api.post('/api/auth/register', { name: sName, email: sEmail, password: sPass });
+      alert("Account created! Please sign in.");
       setMode("login");
     } catch (err) {
-      console.error("SIGNUP ERROR →", err.response?.data || err.message);
       alert("Registration failed: " + (err.response?.data?.message || "Server Error"));
     } finally {
       setLoading(false);
     }
   };
 
-  const formVariants = {
-    enter: { opacity: 0, x: mode === "login" ? -30 : 30 },
-    show: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
-    exit: { opacity: 0, x: mode === "login" ? 30 : -30, transition: { duration: 0.25 } },
+  // ── Google OAuth — just redirect the browser to the backend ───
+  const onGoogleLogin = () => {
+    // The backend (passport) handles the full redirect chain.
+    // After consent, Google sends the browser to /api/auth/google/callback,
+    // which then redirects to /auth/oauth-success#token=...
+    window.location.href = 'http://localhost:5000/api/auth/google';
   };
 
   return (
-    <div className="auth-page">
-      {/* Left Panel — Branding */}
+    <motion.div className="auth-page" variants={pageVariants} initial="initial" animate="animate">
+      {/* ── Left Panel — Branding ─────────────────────────────── */}
       <div className="auth-left">
         <div className="auth-left-content">
-          <div className="auth-logo-area">
+          <motion.div
+            className="auth-logo-area"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
+          >
             <div className="auth-logo-badge">
               <span className="material-symbols-outlined filled">language</span>
             </div>
             <h1 className="auth-logo-text">BhashaFlow</h1>
-          </div>
-          <p className="auth-tagline">Digital Sovereignty for every citizen.</p>
-          <p className="auth-subtitle">
-            Empowering voices through seamless communication and institutional transparency.
-          </p>
+          </motion.div>
 
-          <div className="auth-features">
-            <div className="auth-feature">
-              <span className="material-symbols-outlined">translate</span>
-              <div>
-                <strong>22+ Languages</strong>
-                <p>File grievances in your native tongue</p>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            <p className="auth-tagline">Digital Sovereignty for every citizen.</p>
+            <p className="auth-subtitle">
+              Empowering voices through seamless communication and institutional transparency.
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="auth-features"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45, duration: 0.5 }}
+          >
+            {[
+              { icon: 'translate',     title: '22+ Languages',          desc: 'File grievances in your native tongue' },
+              { icon: 'psychology',    title: 'AI-Powered Routing',     desc: 'Smart categorization & department mapping' },
+              { icon: 'verified_user', title: 'Government Certified',   desc: 'Secure, NIC-compliant infrastructure' },
+            ].map((f) => (
+              <div key={f.title} className="auth-feature">
+                <span className="material-symbols-outlined">{f.icon}</span>
+                <div>
+                  <strong>{f.title}</strong>
+                  <p>{f.desc}</p>
+                </div>
               </div>
-            </div>
-            <div className="auth-feature">
-              <span className="material-symbols-outlined">psychology</span>
-              <div>
-                <strong>AI-Powered Routing</strong>
-                <p>Smart categorization & department mapping</p>
-              </div>
-            </div>
-            <div className="auth-feature">
-              <span className="material-symbols-outlined">verified_user</span>
-              <div>
-                <strong>Government Certified</strong>
-                <p>Secure, NIC-compliant infrastructure</p>
-              </div>
-            </div>
-          </div>
+            ))}
+          </motion.div>
 
           <div className="tricolor-bar">
-            <div className="bar saffron"></div>
-            <div className="bar white"></div>
-            <div className="bar green"></div>
+            <div className="bar saffron" />
+            <div className="bar white" />
+            <div className="bar green" />
           </div>
         </div>
       </div>
 
-      {/* Right Panel — Form */}
+      {/* ── Right Panel — Form ────────────────────────────────── */}
       <div className="auth-right">
-        <div className="auth-form-container">
+        <motion.div
+          className="auth-form-container"
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2, duration: 0.4 }}
+        >
           {/* Tab Switcher */}
           <div className="auth-tabs">
             {[["login", "Sign In"], ["signup", "Create Account"]].map(([m, label]) => (
@@ -130,16 +177,58 @@ export default function CitizenAuth() {
             ))}
           </div>
 
+          {/* OAuth error banner */}
+          <AnimatePresence>
+            {oauthError && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                style={{
+                  background: 'var(--error-container)',
+                  color: 'var(--on-error-container)',
+                  padding: '10px 16px',
+                  fontSize: 'var(--body-sm)',
+                  borderBottom: '1px solid var(--outline-variant)',
+                }}
+              >
+                {oauthError}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Forms */}
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" custom={mode}>
             {mode === "login" ? (
-              <motion.form key="login" variants={formVariants}
-                initial="enter" animate="show" exit="exit"
-                onSubmit={onLogin} className="auth-form"
+              <motion.form
+                key="login"
+                custom="login"
+                variants={formVariants}
+                initial="enter"
+                animate="show"
+                exit="exit"
+                onSubmit={onLogin}
+                className="auth-form"
               >
                 <div className="form-header">
                   <h2>Welcome Back</h2>
                   <p>Access your grievance dashboard and insights.</p>
+                </div>
+
+                {/* Google Sign-In Button */}
+                <motion.button
+                  type="button"
+                  onClick={onGoogleLogin}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-google"
+                >
+                  <GoogleIcon />
+                  Continue with Google
+                </motion.button>
+
+                <div className="auth-divider">
+                  <span>or sign in with email</span>
                 </div>
 
                 <div className="field-group">
@@ -159,37 +248,61 @@ export default function CitizenAuth() {
                     <input id="lp" type={showL ? "text" : "password"} className="input-field has-icon"
                       value={lPass} onChange={e => setLPass(e.target.value)}
                       placeholder="Enter your password" required />
-                    <button type="button" className="toggle-eye"
-                      onClick={() => setShowL(v => !v)}>
-                      <span className="material-symbols-outlined">
-                        {showL ? 'visibility_off' : 'visibility'}
-                      </span>
+                    <button type="button" className="toggle-eye" onClick={() => setShowL(v => !v)}>
+                      <span className="material-symbols-outlined">{showL ? 'visibility_off' : 'visibility'}</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="forgot-row">
-                  <a href="#">Forgot Password?</a>
-                </div>
+                <div className="forgot-row"><a href="#">Forgot Password?</a></div>
 
-                <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+                <motion.button
+                  type="submit"
+                  className="btn btn-primary auth-submit"
+                  disabled={loading}
+                  whileHover={{ scale: loading ? 1 : 1.02 }}
+                  whileTap={{ scale: loading ? 1 : 0.98 }}
+                >
                   {loading ? 'Signing in…' : 'Sign In'}
                   <span className="material-symbols-outlined">arrow_forward</span>
-                </button>
+                </motion.button>
 
                 <p className="auth-switch">
                   New to the portal?{" "}
                   <button type="button" onClick={() => setMode("signup")}>Create an Account</button>
                 </p>
               </motion.form>
+
             ) : (
-              <motion.form key="signup" variants={formVariants}
-                initial="enter" animate="show" exit="exit"
-                onSubmit={onSignup} className="auth-form"
+              <motion.form
+                key="signup"
+                custom="signup"
+                variants={formVariants}
+                initial="enter"
+                animate="show"
+                exit="exit"
+                onSubmit={onSignup}
+                className="auth-form"
               >
                 <div className="form-header">
                   <h2>Join BhashaFlow</h2>
                   <p>Register to raise issues in your native language.</p>
+                </div>
+
+                {/* Google Sign-Up Button */}
+                <motion.button
+                  type="button"
+                  onClick={onGoogleLogin}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="btn-google"
+                >
+                  <GoogleIcon />
+                  Sign up with Google
+                </motion.button>
+
+                <div className="auth-divider">
+                  <span>or create account with email</span>
                 </div>
 
                 <div className="field-group">
@@ -218,12 +331,9 @@ export default function CitizenAuth() {
                     <span className="material-symbols-outlined input-icon">lock</span>
                     <input id="sp" type={showP ? "text" : "password"} className="input-field has-icon"
                       value={sPass} onChange={e => setSPass(e.target.value)}
-                      placeholder="Min. 8 characters" required />
-                    <button type="button" className="toggle-eye"
-                      onClick={() => setShowP(v => !v)}>
-                      <span className="material-symbols-outlined">
-                        {showP ? 'visibility_off' : 'visibility'}
-                      </span>
+                      placeholder="Min. 8 characters" required minLength={8} />
+                    <button type="button" className="toggle-eye" onClick={() => setShowP(v => !v)}>
+                      <span className="material-symbols-outlined">{showP ? 'visibility_off' : 'visibility'}</span>
                     </button>
                   </div>
                 </div>
@@ -235,19 +345,22 @@ export default function CitizenAuth() {
                     <input id="sc" type={showC ? "text" : "password"} className="input-field has-icon"
                       value={sConf} onChange={e => setSConf(e.target.value)}
                       placeholder="Re-enter password" required />
-                    <button type="button" className="toggle-eye"
-                      onClick={() => setShowC(v => !v)}>
-                      <span className="material-symbols-outlined">
-                        {showC ? 'visibility_off' : 'visibility'}
-                      </span>
+                    <button type="button" className="toggle-eye" onClick={() => setShowC(v => !v)}>
+                      <span className="material-symbols-outlined">{showC ? 'visibility_off' : 'visibility'}</span>
                     </button>
                   </div>
                 </div>
 
-                <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
+                <motion.button
+                  type="submit"
+                  className="btn btn-primary auth-submit"
+                  disabled={loading}
+                  whileHover={{ scale: loading ? 1 : 1.02 }}
+                  whileTap={{ scale: loading ? 1 : 0.98 }}
+                >
                   {loading ? 'Creating…' : 'Create Account'}
                   <span className="material-symbols-outlined">arrow_forward</span>
-                </button>
+                </motion.button>
 
                 <p className="auth-switch">
                   Already registered?{" "}
@@ -256,9 +369,8 @@ export default function CitizenAuth() {
               </motion.form>
             )}
           </AnimatePresence>
-        </div>
+        </motion.div>
 
-        {/* Footer links */}
         <div className="auth-footer">
           <a href="#">Privacy Policy</a>
           <a href="#">Terms of Service</a>
@@ -266,6 +378,18 @@ export default function CitizenAuth() {
           <p>© 2024 BhashaFlow. An Initiative for Multilingual Civic Engagement.</p>
         </div>
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+// ── Google "G" icon as inline SVG (no external dep) ────────────
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+    </svg>
   );
 }

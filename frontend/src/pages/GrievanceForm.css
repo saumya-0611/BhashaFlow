@@ -1,0 +1,177 @@
+/* ═══════════════════════════════════════════════════════
+   GRIEVANCE FORM — Step 3 of citizen flow
+   ═══════════════════════════════════════════════════════ */
+
+.gform-page {
+  padding-bottom: var(--space-16);
+}
+
+/* Header */
+.gform-header {
+  margin-bottom: var(--space-8);
+}
+
+.gform-step-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.gform-step-badge {
+  font-size: var(--label-sm);
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-fixed);
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.gform-steps {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.gform-step {
+  font-size: var(--label-sm);
+  font-weight: 600;
+  color: var(--outline);
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--outline-variant);
+}
+
+.gform-step.done {
+  color: var(--emerald);
+  border-color: var(--tertiary-fixed);
+  background: var(--tertiary-fixed);
+}
+
+.gform-step.active {
+  color: var(--on-primary-fixed);
+  background: var(--primary-container);
+  border-color: var(--primary-container);
+}
+
+.gform-header h1 {
+  font-family: var(--font-display);
+  font-size: var(--headline-md);
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: var(--space-2);
+}
+
+.gform-header p {
+  font-size: var(--body-md);
+  color: var(--on-surface-variant);
+  max-width: 600px;
+}
+
+/* Layout */
+.gform-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: var(--space-10);
+}
+
+.gform-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Two-column sub-grid for half-width inputs */
+.gform-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.gform-textarea {
+  resize: vertical;
+  min-height: 90px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  line-height: 1.7;
+}
+
+.gform-hint {
+  font-size: var(--label-sm);
+  color: var(--on-surface-variant);
+  margin-top: var(--space-1);
+}
+
+/* Submit button */
+.gform-submit {
+  width: 100%;
+  padding: var(--space-4);
+  font-size: var(--body-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.gform-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+}
+
+/* Aside */
+.gform-aside {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.gform-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.gform-info-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gform-info h3 {
+  font-family: var(--font-display);
+  font-size: var(--title-sm);
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.gform-info p {
+  font-size: var(--body-sm);
+  color: var(--on-surface-variant);
+  line-height: 1.7;
+}
+
+.gform-info-list {
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.gform-info-list li {
+  font-size: var(--body-sm);
+  color: var(--on-surface-variant);
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .gform-grid { grid-template-columns: 1fr; }
+  .gform-row  { grid-template-columns: 1fr; }
+}
