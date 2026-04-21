@@ -16,11 +16,13 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
+    // Role is always 'citizen' on self-registration.
+    // Authority/admin accounts must be created by an existing admin directly in the DB.
     const newUser = new User({
       name,
       email,
       password,
-      role: role || 'citizen',
+      role: 'citizen',
       phone: phone || undefined,
       preferred_language: preferred_language || 'en-IN'
     });

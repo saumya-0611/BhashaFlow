@@ -19,24 +19,20 @@ const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://ai-engine:8000';
 // Receives text/image/audio from citizen. Saves pending grievance.
 // Calls AI engine for processing. Returns verification data.
 router.post('/ingest', auth, (req, res) => {
-  // Determine upload type from query param or content-type
-  const inputType = req.query.type || 'text';
-
-  const handleUpload = (uploadErr) => {
-    if (uploadErr) {
-      return res.status(400).json({ message: 'File upload error', error: uploadErr.message });
+  // Try image upload first, then audio, then treat as text
+  uploadImage(req, res, (imageErr) => {
+    if (!imageErr && req.file) {
+      return processIngest(req, res, 'image');
     }
-    processIngest(req, res, inputType);
-  };
-
-  if (inputType === 'image') {
-    uploadImage(req, res, handleUpload);
-  } else if (inputType === 'audio') {
-    uploadAudio(req, res, handleUpload);
-  } else {
-    // Text input — no file upload middleware needed
-    processIngest(req, res, 'text');
-  }
+    // Image middleware didn't match — try audio
+    uploadAudio(req, res, (audioErr) => {
+      if (!audioErr && req.file) {
+        return processIngest(req, res, 'audio');
+      }
+      // No file — text input
+      processIngest(req, res, 'text');
+    });
+  });
 });
 
 async function processIngest(req, res, inputType) {
@@ -153,7 +149,8 @@ router.post('/confirm', auth, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    if (confirmed === false) {
+    // req.body.confirmed may arrive as boolean false OR string "false" from JSON
+    if (confirmed === false || confirmed === 'false') {
       // Citizen rejected — reset to pending for re-processing
       grievance.status = 'pending';
       await grievance.save();
@@ -220,8 +217,10 @@ router.post('/submit', auth, async (req, res) => {
     try {
       const translateRes = await axios.post(`${AI_ENGINE_URL}/translate`, {
         text: address,
-        target_language: 'en'
+        source_language_code: 'auto',
+        target_language_code: 'en-IN'
       }, { timeout: 15000 });
+      // AI engine returns { translated_text, source_language_code }
       translatedAddress = translateRes.data.translated_text || address;
     } catch (translateErr) {
       console.warn('⚠️ Address translation failed, using original:', translateErr.message);
@@ -305,7 +304,7 @@ router.get('/my', auth, async (req, res) => {
       ai_analysis: analysisMap[g._id.toString()] || null
     }));
 
-    res.status(200).json(result);
+    res.status(200).json({ grievances: result });
   } catch (error) {
     console.error('❌ My grievances error:', error.message);
     res.status(500).json({ message: 'Failed to fetch grievances', error: error.message });
