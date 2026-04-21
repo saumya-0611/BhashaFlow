@@ -20,3 +20,6 @@ transformers==4.37.2
 
 # Multilingual / Indic Support
 indic-nlp-library==0.92
+
+# Gemini (Google AI Studio)
+google-generativeai>=0.7.0

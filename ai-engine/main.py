@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from services.config import (
     SARVAM_API_KEY,
+    GEMINI_API_KEY,
     LANG_CODES,
     LANG_NAMES,
     BCP47_TO_SHORT,
@@ -35,6 +36,7 @@ from services.speech_service import (
     text_to_speech,
     speech_to_speech,
 )
+from services.grievance_service import process_grievance_full
 
 # ── Logging ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -74,6 +76,15 @@ def validate_config():
         )
     else:
         logger.info("✅ SARVAM_API_KEY is configured.")
+
+    if not GEMINI_API_KEY:
+        logger.warning(
+            "⚠️  GEMINI_API_KEY is not set! "
+            "Grievance analysis will use fallback values (no AI categorisation)."
+        )
+    else:
+        logger.info("✅ GEMINI_API_KEY is configured.")
+
     logger.info("🚀 BhashaFlow AI Engine is starting up...")
 
 
@@ -103,8 +114,9 @@ def health_check():
     return {
         "status": "AI Engine is online",
         "version": "1.0.0",
-        "services": ["ocr", "translate", "speech-to-text", "text-to-speech", "speech-to-speech"],
+        "services": ["ocr", "translate", "speech-to-text", "text-to-speech", "speech-to-speech", "gemini-analysis"],
         "api_key_configured": bool(SARVAM_API_KEY),
+        "gemini_configured": bool(GEMINI_API_KEY),
     }
 
 
@@ -291,6 +303,26 @@ async def speech_to_speech_endpoint(
         return {"success": True, **result}
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  FULL GRIEVANCE PROCESSING (Gemini + Sarvam — called by Node.js backend)
+# ═══════════════════════════════════════════════════════════════════
+
+@app.post("/process-grievance-full")
+async def process_grievance_full_endpoint(
+    text: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
+    audio: Optional[UploadFile] = File(None),
+    source_language_code: str = Form("auto"),
+):
+    """
+    Full pipeline: extract → translate (Sarvam) → analyse (Gemini 2.0 Flash).
+
+    Called exclusively by the Node.js backend over Docker internal network.
+    Returns the complete structured result the backend stores in MongoDB.
+    """
+    return await process_grievance_full(text, image, audio, source_language_code)
 
 
 # ═══════════════════════════════════════════════════════════════════
