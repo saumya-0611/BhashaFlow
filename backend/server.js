@@ -3,59 +3,79 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import passport from 'passport';
 
 // Route imports
 import authRoutes from './routes/authRoutes.js';
+import googleAuthRoutes from './routes/googleAuthRoutes.js';
 import grievanceRoutes from './routes/grievanceRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 
 // Cron job import
 import { startCronJobs } from './utils/cronJobs.js';
 
-// ─── Configuration ──────────────────────────────────────────────
+// ─── Configuration ────────────────────────────────────────────────
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ─── Middleware ──────────────────────────────────────────────────
-app.use(cors());
+// ─── CORS ─────────────────────────────────────────────────────────
+// Allow the React dev server and any future deployed frontend origin.
+app.use(cors({
+  origin: [
+    process.env.FRONTEND_URL || 'http://localhost:3000',
+    'http://localhost:3000',
+  ],
+  credentials: true,
+}));
+
+// ─── Body Parsers ─────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files statically (images, audio)
-// Ensure uploads directory exists
+// ─── Passport (required by Google OAuth — session: false so no cookies) ──
+app.use(passport.initialize());
+
+// ─── Static Files — Multer uploads ───────────────────────────────
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads', { recursive: true });
 }
 app.use('/uploads', express.static('uploads'));
 
-// ─── Routes ─────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/grievance', grievanceRoutes);    // Protected by auth middleware internally
-app.use('/api/admin', adminRoutes);            // Protected by auth + role check internally
+// ─── Routes ──────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);           // Register / Login (email+password)
+app.use('/api/auth', googleAuthRoutes);     // Google OAuth (/google, /google/callback)
+app.use('/api/grievance', grievanceRoutes); // Protected — citizen routes
+app.use('/api/admin', adminRoutes);         // Protected — authority/admin routes
 
-// ─── Health Check ───────────────────────────────────────────────
+// ─── Health Check ────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
     service: 'BhashaFlow Backend',
-    message: 'BhashaFlow Backend is running and connected to DB!',
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
-// ─── MongoDB Atlas Connection ───────────────────────────────────
+// ─── Global Error Handler ─────────────────────────────────────────
+// Catches any unhandled errors thrown inside route handlers.
+app.use((err, req, res, _next) => {
+  console.error('❌ Unhandled error:', err.message);
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal Server Error',
+  });
+});
+
+// ─── MongoDB Atlas Connection ─────────────────────────────────────
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ Connected to MongoDB Atlas successfully!'))
   .catch((err) => console.error('❌ MongoDB connection error:', err));
 
-// ─── Start Server ───────────────────────────────────────────────
+// ─── Start Server ─────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`🚀 Backend server running on port ${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/`);
-
-  // Start cron jobs after server is up
   startCronJobs();
 });
