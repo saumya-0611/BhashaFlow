@@ -22,4 +22,4 @@ transformers==4.37.2
 indic-nlp-library==0.92
 
 # Gemini (Google AI Studio)
-google-generativeai>=0.7.0
+google-genai>=0.8.0

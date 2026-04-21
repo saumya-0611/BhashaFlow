@@ -11,27 +11,18 @@ import json
 import logging
 import re
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from .config import GEMINI_API_KEY
 
 logger = logging.getLogger(__name__)
 
-# ── Initialise Gemini ─────────────────────────────────────────────
 if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    _model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction=(
-            "You are an AI assistant for BhashaFlow, an Indian government citizen grievance portal. "
-            "You analyze citizen complaints and extract structured information. "
-            "Always respond with ONLY a valid JSON object. "
-            "No markdown, no code fences, no explanations outside the JSON."
-        ),
-    )
-    logger.info("✅ Gemini 2.0 Flash model initialized.")
+    _client = genai.Client(api_key=GEMINI_API_KEY)
+    logger.info("✅ Gemini 2.0 Flash client initialized.")
 else:
-    _model = None
+    _client = None
     logger.warning("⚠️  GEMINI_API_KEY not set — analysis will use fallback values.")
 
 # ── Fallback response when Gemini is unavailable ──────────────────
@@ -67,7 +58,7 @@ def analyze_with_gemini(english_text: str, detected_language: str) -> dict:
             "confidence_score":      0.0 to 1.0
         }
     """
-    if _model is None:
+    if _client is None:
         logger.warning("Gemini not available — using fallback.")
         return _fallback(english_text)
 
@@ -95,7 +86,19 @@ For the confidence_score, assign a value between 0.70 and 0.99 reflecting how co
 you identified the category. Return only the JSON object, nothing else."""
 
     try:
-        response = _model.generate_content(prompt)
+        response = _client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=(
+                    "You are an AI assistant for BhashaFlow, an Indian government citizen grievance portal. "
+                    "You analyze citizen complaints and extract structured information. "
+                    "Always respond with ONLY a valid JSON object. "
+                    "No markdown, no code fences, no explanations outside the JSON."
+                ),
+                response_mime_type="application/json",
+            ),
+        )
         raw = response.text.strip()
 
         # Strip markdown code fences if Gemini wraps in ```json ... ```
