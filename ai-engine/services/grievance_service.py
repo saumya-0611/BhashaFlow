@@ -1,128 +1,149 @@
 """
-BhashaFlow AI Engine — Gemini Service
+BhashaFlow AI Engine — Grievance Service
 
-Uses Google Gemini 2.0 Flash to:
-  - Extract category, priority, and keywords from English grievance text
-  - Generate a human-readable English summary for admins
-  - Generate a native-language verification sentence for the citizen
+Orchestrates the full processing pipeline for /process-grievance-full:
+  1. Extract text from input (text / image / audio)
+  2. Translate to English via Sarvam
+  3. Analyse with Gemini 2.0 Flash
+  4. Return structured JSON to the Node.js backend
 """
 
-import json
 import logging
-import re
+import time
+from typing import Optional
 
-import google.generativeai as genai
+from fastapi import File, Form, HTTPException, UploadFile
 
-from .config import GEMINI_API_KEY
+from .config import DEFAULT_OCR_LANGUAGES
+from .gemini_service import analyze_with_gemini
+from .ocr_service import extract_text_from_image
+from .speech_service import speech_to_text
+from .translate_service import get_language_name, translate_text
 
 logger = logging.getLogger(__name__)
 
-# ── Initialise Gemini ─────────────────────────────────────────────
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    _model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction=(
-            "You are an AI assistant for BhashaFlow, an Indian government citizen grievance portal. "
-            "You analyze citizen complaints and extract structured information. "
-            "Always respond with ONLY a valid JSON object. "
-            "No markdown, no code fences, no explanations outside the JSON."
-        ),
-    )
-    logger.info("✅ Gemini 2.0 Flash model initialized.")
-else:
-    _model = None
-    logger.warning("⚠️  GEMINI_API_KEY not set — analysis will use fallback values.")
 
-# ── Fallback response when Gemini is unavailable ──────────────────
-def _fallback(english_text: str) -> dict:
-    return {
-        "title": english_text[:60].strip(),
-        "english_summary": english_text,
-        "verification_sentence": "kya yeh sahi hai?",
-        "category": "other",
-        "priority": "medium",
-        "keywords": [],
-        "confidence_score": 0.5,
+async def process_grievance_full(
+    text: Optional[str],
+    image: Optional[UploadFile],
+    audio: Optional[UploadFile],
+    source_language_code: str = "auto",
+) -> dict:
+    """
+    Full grievance processing pipeline.
+
+    Priority: audio > image > text (matches existing /process-grievance logic).
+
+    Returns the contract JSON the Node.js backend expects:
+    {
+        success, original_text, english_text, detected_language,
+        input_type, title, english_summary, verification_sentence,
+        category, priority, keywords, confidence_score,
+        ocr_raw_text, stt_transcript, processing_ms
     }
-
-
-def analyze_with_gemini(english_text: str, detected_language: str) -> dict:
     """
-    Send the English translation of a grievance to Gemini 2.0 Flash
-    and receive structured analysis.
+    t_start = time.monotonic()
 
-    Args:
-        english_text:       English translation of the citizen's complaint.
-        detected_language:  BCP-47 code of the original language (e.g. 'hi-IN').
+    extracted_text = ""
+    detected_language = source_language_code
+    input_type = ""
+    ocr_raw_text = None
+    stt_transcript = None
 
-    Returns:
-        {
-            "title":                 "8-word English title",
-            "english_summary":       "2-3 sentence admin summary",
-            "verification_sentence": "native-language Yes/No question for citizen",
-            "category":              one of water/roads/electricity/sanitation/education/healthcare/other,
-            "priority":              one of low/medium/high/critical,
-            "keywords":              ["list", "of", "key", "terms"],
-            "confidence_score":      0.0 to 1.0
-        }
-    """
-    if _model is None:
-        logger.warning("Gemini not available — using fallback.")
-        return _fallback(english_text)
+    # ── STEP 1: Extract text from whichever input was provided ────────
+    if audio is not None:
+        audio_bytes = await audio.read()
+        if not audio_bytes:
+            raise HTTPException(status_code=400, detail="Empty audio file.")
 
-    prompt = f"""Analyze this citizen grievance (originally in {detected_language}):
-"{english_text}"
+        logger.info("STT: transcribing audio file '%s' (%d bytes)", audio.filename, len(audio_bytes))
+        stt_result = speech_to_text(
+            audio_bytes=audio_bytes,
+            filename=audio.filename or "audio.wav",
+            language_code="unknown",
+            mode="transcribe",
+        )
+        extracted_text = stt_result["transcript"]
+        detected_language = stt_result.get("language_code", "unknown")
+        stt_transcript = extracted_text
+        input_type = "audio"
+        logger.info("STT done: lang=%s, chars=%d", detected_language, len(extracted_text))
 
-Return a JSON object with EXACTLY these fields:
-{{
-  "title": "8-word English title summarizing the issue",
-  "english_summary": "2-3 sentence English summary for the admin dashboard",
-  "verification_sentence": "One short question in {detected_language} confirming the issue type. Under 10 words. Example for hi-IN: 'kya yeh paani ki samasya hai?'",
-  "category": "one of: water, roads, electricity, sanitation, education, healthcare, other",
-  "priority": "one of: low, medium, high, critical",
-  "keywords": ["3 to 5 key terms extracted from the complaint"],
-  "confidence_score": 0.0
-}}
+    elif image is not None:
+        image_bytes = await image.read()
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="Empty image file.")
 
-Priority rules:
-- critical: health hazard, structural collapse, no water for 3+ days, medical emergency
-- high: essential services disrupted for 24+ hours
-- medium: services degraded but partially functional
-- low: minor inconvenience or maintenance request
+        logger.info("OCR: extracting text from image '%s' (%d bytes)", image.filename, len(image_bytes))
+        ocr_result = extract_text_from_image(image_bytes, DEFAULT_OCR_LANGUAGES)
+        extracted_text = ocr_result["extracted_text"]
+        ocr_raw_text = extracted_text
+        detected_language = source_language_code  # OCR does not auto-detect language
+        input_type = "image"
+        logger.info("OCR done: chars=%d", len(extracted_text))
 
-For the confidence_score, assign a value between 0.70 and 0.99 reflecting how confidently
-you identified the category. Return only the JSON object, nothing else."""
+    elif text and text.strip():
+        extracted_text = text.strip()
+        detected_language = source_language_code
+        input_type = "text"
+        logger.info("Text input: chars=%d", len(extracted_text))
 
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one of: text, image, or audio.",
+        )
+
+    if not extracted_text:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not extract any text from the provided {input_type} input.",
+        )
+
+    # ── STEP 2: Translate to English via Sarvam ───────────────────────
+    logger.info("Translating %d chars from '%s' to en-IN", len(extracted_text), detected_language)
     try:
-        response = _model.generate_content(prompt)
-        raw = response.text.strip()
+        translation = translate_text(
+            text=extracted_text,
+            source_language_code=detected_language if detected_language != "auto" else "auto",
+            target_language_code="en-IN",
+        )
+        english_text = translation["translated_text"]
+        # Sarvam auto-detects and echoes the real source language
+        detected_language = translation.get("source_language_code", detected_language)
+    except RuntimeError as exc:
+        logger.warning("Translation failed: %s — falling back to original text.", exc)
+        english_text = extracted_text  # graceful degradation
 
-        # Strip markdown code fences if Gemini wraps in ```json ... ```
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        raw = raw.strip()
+    logger.info("Translation done: detected_lang=%s, english chars=%d", detected_language, len(english_text))
 
-        data = json.loads(raw)
+    # ── STEP 3: Gemini analysis ───────────────────────────────────────
+    logger.info("Running Gemini analysis...")
+    gemini_result = analyze_with_gemini(english_text, detected_language)
+    logger.info(
+        "Gemini done: category=%s, priority=%s, confidence=%.2f",
+        gemini_result["category"], gemini_result["priority"], gemini_result["confidence_score"]
+    )
 
-        # Validate and sanitise required fields
-        valid_categories = {"water", "roads", "electricity", "sanitation", "education", "healthcare", "other"}
-        valid_priorities = {"low", "medium", "high", "critical"}
+    # ── STEP 4: Assemble and return ───────────────────────────────────
+    processing_ms = int((time.monotonic() - t_start) * 1000)
 
-        return {
-            "title": str(data.get("title", english_text[:60])).strip(),
-            "english_summary": str(data.get("english_summary", english_text)).strip(),
-            "verification_sentence": str(data.get("verification_sentence", "kya yeh sahi hai?")).strip(),
-            "category": data.get("category", "other") if data.get("category") in valid_categories else "other",
-            "priority": data.get("priority", "medium") if data.get("priority") in valid_priorities else "medium",
-            "keywords": list(data.get("keywords", [])),
-            "confidence_score": float(data.get("confidence_score", 0.75)),
-        }
-
-    except (json.JSONDecodeError, KeyError, TypeError) as parse_err:
-        logger.warning("Gemini response parse failed: %s — using fallback.", parse_err)
-        return _fallback(english_text)
-
-    except Exception as e:
-        logger.exception("Gemini API call failed: %s — using fallback.", e)
-        return _fallback(english_text)
+    return {
+        "success": True,
+        "original_text": extracted_text,
+        "english_text": english_text,
+        "detected_language": detected_language,
+        "input_type": input_type,
+        # From Gemini
+        "title": gemini_result["title"],
+        "english_summary": gemini_result["english_summary"],
+        "verification_sentence": gemini_result["verification_sentence"],
+        "category": gemini_result["category"],
+        "priority": gemini_result["priority"],
+        "keywords": gemini_result["keywords"],
+        "confidence_score": gemini_result["confidence_score"],
+        # Raw intermediates (null if not applicable)
+        "ocr_raw_text": ocr_raw_text,
+        "stt_transcript": stt_transcript,
+        "processing_ms": processing_ms,
+    }
