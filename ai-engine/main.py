@@ -125,7 +125,7 @@ class TTSRequest(BaseModel):
 #  HEALTH CHECK
 # ═══════════════════════════════════════════════════════════════════
 
-@app.get("/")
+@app.get("/", methods=["GET", "HEAD"])
 def health_check():
     return {
         "status": "AI Engine is online",
