@@ -11,7 +11,7 @@ torch==2.2.0+cpu
 torchvision==0.17.0+cpu
 easyocr==1.7.1
 Pillow>=10.0.0
-numpy>=1.24.0
+numpy>=1.24.0,<2.0.0
 
 # ── Gemini SDK ────────────────────────────────────────────────────
 google-genai==1.0.0

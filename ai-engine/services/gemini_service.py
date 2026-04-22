@@ -70,7 +70,11 @@ def identify_scripts_with_gemini(image_bytes: bytes) -> list[str]:
     # Create a part from the image bytes
     image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/png")
     
-    prompt = "Identify the Indian languages or scripts written in this image. Return ONLY a comma-separated list of ISO codes (e.g., hi, ml, ta, en)."
+    prompt = """Analyze this image of a handwritten grievance or any file uploaded in context of grievance. 
+                Look closely at all characters. 
+                Identify EVERY script or language present (e.g., Hindi, Malayalam, English, Tamil). 
+                Return ONLY a comma-separated list of ISO codes like: hi, ml, en, ta.
+                Be thorough—if you see mixed scripts, list them all."""
 
     try:
         response = _client.models.generate_content(
