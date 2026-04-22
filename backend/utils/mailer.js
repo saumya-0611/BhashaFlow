@@ -83,4 +83,61 @@ export async function sendFollowUpEmail(to, grievanceId, category, title) {
   return info;
 }
 
+/**
+ * Send a password reset email with a unique token link.
+ * @param {string} to - Citizen's email address
+ * @param {string} token - The reset token
+ */
+export async function sendPasswordResetEmail(to, token) {
+  const frontendBase = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const resetLink = `${frontendBase}/reset-password/${token}`;
+
+  const mailOptions = {
+    from: `"BhashaFlow Support" <${process.env.GMAIL_USER}>`,
+    to,
+    subject: `Password Reset Request — BhashaFlow`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; border-radius: 10px 10px 0 0;">
+          <h1 style="color: #fff; margin: 0; font-size: 22px;">🇮🇳 BhashaFlow</h1>
+          <p style="color: rgba(255,255,255,0.85); margin: 5px 0 0;">Multilingual Citizen Grievance Portal</p>
+        </div>
+        
+        <div style="background: #f9f9f9; padding: 25px; border: 1px solid #e0e0e0;">
+          <h2 style="color: #333; margin-top: 0;">Reset Your Password</h2>
+          
+          <p style="color: #555; line-height: 1.6;">
+            We received a request to reset your password for your BhashaFlow account.
+          </p>
+          
+          <p style="color: #555; line-height: 1.6;">
+            Click the button below to set a new password. This link is valid for 1 hour.
+          </p>
+          
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${resetLink}" 
+               style="background: #4CAF50; color: #fff; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 0 10px; display: inline-block; font-weight: bold;">
+               Reset Password
+            </a>
+          </div>
+          
+          <p style="color: #888; font-size: 12px; margin-top: 20px;">
+            If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+          </p>
+        </div>
+        
+        <div style="background: #333; padding: 15px; border-radius: 0 0 10px 10px; text-align: center;">
+          <p style="color: #aaa; margin: 0; font-size: 12px;">
+            BhashaFlow — Secure Identity Management
+          </p>
+        </div>
+      </div>
+    `
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log(`📧 Password reset email sent to ${to} — MessageID: ${info.messageId}`);
+  return info;
+}
+
 export default transporter;
