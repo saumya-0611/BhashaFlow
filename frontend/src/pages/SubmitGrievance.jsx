@@ -89,7 +89,6 @@ export default function SubmitGrievance() {
   const validateInput = () => {
     if (activeTab === 'text' && !text.trim()) return false;
     if (activeTab === 'voice' && !audioBlob) return false;
-    if (activeTab === 'image' && files.length === 0) return false;
     return true;
   };
 
@@ -103,7 +102,7 @@ export default function SubmitGrievance() {
     const formData = new FormData();
     if (activeTab === 'text') formData.append('text', text);
     if (activeTab === 'voice') formData.append('audio', audioBlob, 'recording.webm');
-    if (activeTab === 'image') formData.append('image', files[0]);
+    if (files.length > 0) formData.append('image', files[0]); // Send as image field for backend compat
 
     setSubmitting(true);
     try {
@@ -132,7 +131,7 @@ export default function SubmitGrievance() {
               
               {/* Tab Selector */}
               <div className="flex bg-surface-low rounded-lg p-1 mb-6" style={{ display: 'flex', gap: '8px', background: 'var(--surface-container-low)', padding: '6px', borderRadius: '8px', marginBottom: '24px' }}>
-                {['text', 'voice', 'image'].map(tab => (
+                {['text', 'voice'].map(tab => (
                   <button
                     key={tab}
                     type="button"
@@ -189,32 +188,36 @@ export default function SubmitGrievance() {
                 </div>
               )}
 
-              {/* File Upload Tab */}
-              {activeTab === 'image' && (
+              {/* Always-visible Proof Upload Zone */}
+              <div className="field-group" style={{ marginTop: '24px' }}>
+                <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>
+                  Attach Proof (PDF format) <span style={{ color: 'var(--outline)', fontWeight: 'normal', fontStyle: 'italic', marginLeft: '6px' }}>(Optional)</span>
+                </label>
                 <div
                   className={`upload-zone ${dragging ? 'dragging' : ''} ${files.length > 0 ? 'has-files' : ''}`}
                   onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
                   onClick={() => fileRef.current?.click()}
+                  style={{ border: '2px dashed var(--outline-variant)', borderRadius: '12px', padding: '32px', textAlign: 'center', cursor: 'pointer', background: dragging ? 'var(--surface-container-high)' : 'var(--surface-container-lowest)' }}
                 >
                   <input
                     type="file" ref={fileRef} style={{ display: 'none' }}
-                    accept="image/jpeg,image/png,image/webp,.pdf"
+                    accept="application/pdf"
                     onChange={(e) => setFiles(prev => [...prev, ...Array.from(e.target.files)])}
                   />
-                  <span className="material-symbols-outlined upload-icon">cloud_upload</span>
-                  <p className="upload-text">
+                  <span className="material-symbols-outlined upload-icon" style={{ fontSize: '40px', color: 'var(--primary)', marginBottom: '12px' }}>cloud_upload</span>
+                  <p className="upload-text" style={{ fontSize: '16px', fontWeight: '500', color: 'var(--on-surface)' }}>
                     {files.length > 0
                       ? `${files.length} file(s) attached`
-                      : 'Drag and drop images or PDFs here'
+                      : 'Drag and drop PDF proof here, or click to browse'
                     }
                   </p>
-                  <p className="upload-hint">Max size 10MB. Formats: JPG, PNG, PDF</p>
+                  <p className="upload-hint" style={{ fontSize: '14px', color: 'var(--outline)', marginTop: '8px' }}>Max size 10MB. Formats: PDF Only</p>
                   {files.length > 0 && (
-                    <div className="file-list">
+                    <div className="file-list" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '16px' }}>
                       {files.map((f, i) => (
-                        <span key={i} className="chip chip-primary">
+                        <span key={i} className="chip chip-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-container)', color: 'var(--on-primary-container)', padding: '4px 12px', borderRadius: '16px', fontSize: '14px' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>attach_file</span>
                           {f.name}
                         </span>
@@ -222,7 +225,7 @@ export default function SubmitGrievance() {
                     </div>
                   )}
                 </div>
-              )}
+              </div>
 
               {/* Submit Button */}
               <button type="submit" className="btn btn-primary submit-btn mt-6" disabled={submitting} style={{ width: '100%', marginTop: '24px' }}>
@@ -244,32 +247,7 @@ export default function SubmitGrievance() {
               </div>
             </div>
 
-            {/* Right Column — Info Cards */}
-            <aside className="submit-aside">
-              <div className="info-card card surface-low">
-                <div className="info-card-header">
-                  <span className="material-symbols-outlined filled" style={{ color: 'var(--primary-container)' }}>translate</span>
-                  <h3>Multilingual Analysis</h3>
-                </div>
-                <p>Our neural engine supports 22+ official languages. Type as you speak; the AI handles formal translation and summary automatically.</p>
-              </div>
-
-              <div className="info-card card surface-low">
-                <div className="info-card-header">
-                  <span className="material-symbols-outlined filled" style={{ color: 'var(--saffron)' }}>category</span>
-                  <h3>Auto-Categorization</h3>
-                </div>
-                <p>Based on your description, the system predicts the correct department, reducing dispatch time by up to 70%.</p>
-              </div>
-
-              <div className="info-card card surface-low">
-                <div className="info-card-header">
-                  <span className="material-symbols-outlined filled" style={{ color: 'var(--emerald)' }}>speed</span>
-                  <h3>Priority Detection</h3>
-                </div>
-                <p>The AI assesses urgency from your text and attached evidence, escalating critical cases automatically.</p>
-              </div>
-            </aside>
+            {/* Right Column Removed as requested */}
           </div>
         </form>
       </div>

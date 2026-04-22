@@ -22,9 +22,8 @@
 }
 
 .submit-grid {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: var(--space-10);
+  display: block;
+  max-width: 800px;
 }
 
 .submit-main {
@@ -145,5 +144,5 @@
 }
 
 @media (max-width: 900px) {
-  .submit-grid { grid-template-columns: 1fr; }
+  /* No grid override needed anymore */
 }
