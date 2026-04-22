@@ -38,44 +38,26 @@ def _get_reader(languages: list[str]) -> easyocr.Reader:
     return _reader
 
 
-def extract_text_from_image(
-    image_bytes: bytes,
-    languages: Optional[list[str]] = None,
-) -> dict:
-    """
-    Extract text from an image using EasyOCR.
-
-    Args:
-        image_bytes: Raw bytes of the uploaded image file.
-        languages:   List of EasyOCR language codes (e.g. ['hi', 'en']).
-                     Defaults to DEFAULT_OCR_LANGUAGES from config.
-
-    Returns:
-        {
-            "extracted_text": "full concatenated text",
-            "details": [
-                {"text": "...", "confidence": 0.95, "bbox": [[x1,y1], ...]},
-                ...
-            ]
-        }
-    """
+def extract_text_from_image(image_bytes: bytes, languages: Optional[list[str]] = None) -> dict:
     if languages is None:
         languages = DEFAULT_OCR_LANGUAGES
 
     try:
-        # Convert bytes → numpy array for EasyOCR
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         image_np = np.array(image)
 
-        reader = _get_reader(languages)
-        results = reader.readtext(image_np)
+        # Attempt to load the identified languages; fallback on compatibility errors
+        try:
+            reader = _get_reader(languages)
+        except ValueError:
+            logger.warning(f"Compatibility error with {languages}. Falling back to ['en', 'hi'].")
+            reader = _get_reader(["en", "hi"])
 
-        # results = list of (bbox, text, confidence)
+        results = reader.readtext(image_np)
         details = []
         text_parts = []
 
         for bbox, text, confidence in results:
-            # Convert numpy values to plain Python types for JSON serialization
             details.append({
                 "text": text,
                 "confidence": round(float(confidence), 4),
@@ -83,13 +65,10 @@ def extract_text_from_image(
             })
             text_parts.append(text)
 
-        extracted_text = " ".join(text_parts).strip()
-
         return {
-            "extracted_text": extracted_text,
+            "extracted_text": " ".join(text_parts).strip(),
             "details": details,
         }
-
     except Exception as e:
         logger.exception("OCR extraction failed")
         raise RuntimeError(f"OCR extraction failed: {e}") from e

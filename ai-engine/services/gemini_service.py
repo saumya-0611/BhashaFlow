@@ -58,7 +58,53 @@ def _fallback(english_text: str) -> dict:
 
 
 # ── Main Function ─────────────────────────────────────────────────
+# Add to services/gemini_service.py
 
+def identify_scripts_with_gemini(image_bytes: bytes) -> list[str]:
+    """
+    Uses Gemini Flash to identify which Indian scripts are in the image.
+    """
+    if _client is None:
+        return ["en", "hi"] # Safe default
+
+    # Create a part from the image bytes
+    image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/png")
+    
+    prompt = "Identify the Indian languages or scripts written in this image. Return ONLY a comma-separated list of ISO codes (e.g., hi, ml, ta, en)."
+
+    try:
+        response = _client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[prompt, image_part]
+        )
+        # Extract codes like ['hi', 'ml']
+        codes = [c.strip().lower() for c in response.text.split(",")]
+        return codes
+    except Exception as e:
+        logger.error(f"Script identification failed: {e}")
+        return ["en", "hi"]
+    
+def analyze_with_gemini_fix_ocr(raw_text: str, identified_langs: list[str]) -> str:
+    """Dual Validation: Gemini cleans and reconstructs noisy OCR text based on context."""
+    if _client is None or not raw_text.strip():
+        return raw_text
+
+    prompt = f"""The following text was extracted via OCR from a citizen grievance in {identified_langs}. 
+    It may contain misread characters or noise. Reconstruct it into a coherent, meaningful grievance 
+    in its original language. Correct obvious errors but keep the original intent.
+    
+    RAW OCR TEXT:
+    "{raw_text}"
+    
+    Return ONLY the corrected text."""
+
+    try:
+        response = _client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
+        return response.text.strip()
+    except Exception as e:
+        logger.error(f"OCR fix failed: {e}")
+        return raw_text
+    
 def analyze_with_gemini(english_text: str, detected_language: str) -> dict:
     """
     Send English grievance text to Gemini for structured analysis.
