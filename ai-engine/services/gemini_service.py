@@ -43,7 +43,6 @@ class GrievanceAnalysis(BaseModel):
         "income_tax", "provident_fund", "pensions", "postal_services", 
         "rti", "electricity_water", "national_general", "state_general", "other"
     ]
-    priority: Literal["low", "medium", "high", "critical"]
     keywords: list[str] = Field(description="3 to 5 key terms from the complaint")
     confidence_score: float = Field(ge=0.0, le=1.0, description="Confidence between 0.70 and 0.99")
 
@@ -54,7 +53,6 @@ def _fallback(english_text: str) -> dict:
         "english_summary": english_text,
         "verification_sentence": "kya yeh sahi hai?",
         "category": "other",
-        "priority": "medium",
         "keywords": [],
         "confidence_score": 0.5,
     }
@@ -220,9 +218,8 @@ Example for hi-IN: 'kya yeh paani ki samasya hai?'"""
                 return _fallback(english_text)
 
             logger.info(
-                "Gemini done: category=%s, priority=%s, confidence=%.2f",
+                "Gemini done: category=%s, confidence=%.2f",
                 parsed.category,
-                parsed.priority,
                 parsed.confidence_score,
             )
 
@@ -231,7 +228,6 @@ Example for hi-IN: 'kya yeh paani ki samasya hai?'"""
                 "english_summary": parsed.english_summary,
                 "verification_sentence": parsed.verification_sentence,
                 "category": parsed.category,
-                "priority": parsed.priority,
                 "keywords": parsed.keywords,
                 "confidence_score": parsed.confidence_score,
             }

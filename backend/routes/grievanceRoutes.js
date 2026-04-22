@@ -90,7 +90,6 @@ async function processIngest(req, res, inputType) {
       ocr_raw_text:         aiData.ocr_raw_text || '',
       stt_transcript:       aiData.stt_transcript || '',
       llm_category:         aiData.category || '',
-      llm_priority:         aiData.priority || 'medium',
       keywords:             aiData.keywords || [],
       confidence_score:     aiData.confidence_score || 0,
       processing_ms:        aiData.processing_ms || 0,
@@ -103,7 +102,6 @@ async function processIngest(req, res, inputType) {
     grievance.original_text     = aiData.original_text || req.body.text || '';
     grievance.original_language = aiData.detected_language || 'en-IN';
     grievance.category          = aiData.category  || 'other';
-    grievance.priority          = aiData.priority  || 'medium';
     grievance.status            = 'pending'; // ready for citizen confirm step
     await grievance.save();
 
@@ -114,7 +112,6 @@ async function processIngest(req, res, inputType) {
       verification_sentence: aiData.verification_sentence || '',
       detected_language:     aiData.detected_language || 'en-IN',
       category:              aiData.category  || 'other',
-      priority:              aiData.priority  || 'medium',
       keywords:              aiData.keywords  || [],
       english_summary:       aiData.english_summary || aiData.english_text || '',
       original_text:          grievance.original_text || '',

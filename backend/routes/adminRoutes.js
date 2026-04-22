@@ -20,7 +20,7 @@ router.get('/grievances', async (req, res) => {
   try {
     const {
       page = 1, limit = 20,
-      status, category, language, priority,
+      status, category, language,
       sort_by = 'submitted_at', sort_order = 'desc',
     } = req.query;
 
@@ -28,7 +28,7 @@ router.get('/grievances', async (req, res) => {
     if (status)   filter.status            = status;
     if (category) filter.category          = category;
     if (language) filter.original_language = language;
-    if (priority) filter.priority          = priority;
+
 
     const pageNum      = parseInt(page,  10);
     const limitNum     = parseInt(limit, 10);

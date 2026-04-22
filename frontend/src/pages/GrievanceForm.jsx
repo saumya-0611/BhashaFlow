@@ -103,7 +103,6 @@ export default function GrievanceForm() {
             grievance_id:     grievance._id,
             english_summary:  ai_analysis?.english_summary || grievance.title || '',
             category:         grievance.category || 'other',
-            priority:         grievance.priority || 'medium',
             keywords:         ai_analysis?.keywords || [],
             confidence_score: ai_analysis?.confidence_score,
             detected_language: ai_analysis?.detected_language || grievance.original_language || 'en-IN',
@@ -216,12 +215,7 @@ export default function GrievanceForm() {
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
               {stepData.category && (
                 <span className="chip chip-primary" style={{ textTransform: 'capitalize' }}>
-                  {stepData.category}
-                </span>
-              )}
-              {stepData.priority && (
-                <span className="chip chip-secondary" style={{ textTransform: 'capitalize' }}>
-                  {stepData.priority} priority
+                  {stepData.category.replace(/_/g, ' ')}
                 </span>
               )}
             </div>

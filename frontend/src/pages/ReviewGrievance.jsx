@@ -41,7 +41,7 @@ export default function ReviewGrievance() {
 
   if (!state) return null;
 
-  const { form, original_text, english_summary, category, priority, keywords, confidence_score } = state;
+  const { form, original_text, english_summary, category, keywords, confidence_score } = state;
 
   const handleConfirmSubmit = async () => {
     setSubmitError('');
@@ -119,12 +119,6 @@ export default function ReviewGrievance() {
                 <span className="chip chip-primary" style={{ textTransform: 'capitalize' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>category</span>
                   {category.replace(/_/g, ' ')}
-                </span>
-              )}
-              {priority && (
-                <span className="chip chip-secondary" style={{ textTransform: 'capitalize' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>flag</span>
-                  {priority} Priority
                 </span>
               )}
               {confidence_score != null && (

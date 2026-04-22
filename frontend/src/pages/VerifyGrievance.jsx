@@ -58,7 +58,6 @@ export default function VerifyGrievance() {
           verification_sentence: ai_analysis?.verification_sentence || '',
           detected_language:     ai_analysis?.detected_language || grievance.original_language || 'en-IN',
           category:              grievance.category || 'other',
-          priority:              grievance.priority || 'medium',
           keywords:              ai_analysis?.keywords || [],
           english_summary:       ai_analysis?.english_summary || grievance.title || '',
           original_text:          grievance.original_text || '',

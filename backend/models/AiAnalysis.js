@@ -13,7 +13,6 @@ const aiAnalysisSchema = new mongoose.Schema({
   ocr_raw_text: { type: String },
   stt_transcript: { type: String },
   llm_category: { type: String },
-  llm_priority: { type: String },
   keywords: [{ type: String }],
   confidence_score: { type: Number, min: 0, max: 1 },
   processing_ms: { type: Number },
