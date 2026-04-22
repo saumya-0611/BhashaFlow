@@ -9,7 +9,7 @@ import Grievance from '../models/Grievance.js';
 import AiAnalysis from '../models/AiAnalysis.js';
 import StatusUpdate from '../models/StatusUpdate.js';
 import TrainingData from '../models/TrainingData.js';
-import { PORTAL_DATA, RESOLUTION_DAYS } from '../utils/portalData.js';
+import { getPortalsForCategory } from '../utils/portalData.js';
 
 const router = express.Router();
 const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://ai-engine:8000';
@@ -236,14 +236,7 @@ router.post('/submit', auth, async (req, res) => {
     }
 
     const category   = grievance.category || 'other';
-    const portalInfo = PORTAL_DATA[category]?.[state] || null;
-    const portalLinks = portalInfo ? {
-      portal_name: portalInfo.portal_name,
-      portal_url:  portalInfo.portal_url,
-      helpline:    portalInfo.helpline,
-    } : null;
-    const procedureSteps = portalInfo ? portalInfo.procedure_steps : [];
-    const expectedResolutionDays = RESOLUTION_DAYS[category] || RESOLUTION_DAYS.other;
+    const { portalLinks, procedureSteps, expectedResolutionDays } = getPortalsForCategory(category, state);
 
     grievance.portal_links = portalLinks;
     grievance.nearby_offices = nearbyOffices;

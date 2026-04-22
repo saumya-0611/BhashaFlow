@@ -103,7 +103,13 @@ export default function AIAnalysis() {
   // Normalise portal_links → always an array for the render loop
   const portalsArray = (() => {
     if (!portal_links) return [];
-    if (Array.isArray(portal_links)) return portal_links;
+    if (Array.isArray(portal_links)) {
+      return portal_links.map(p => ({
+        name: p.portal_name || p.name,
+        url:  p.portal_url || p.url,
+        desc: p.helpline ? `Helpline: ${p.helpline}` : (p.desc || ''),
+      }));
+    }
     return [{
       name: portal_links.portal_name,
       url:  portal_links.portal_url,
