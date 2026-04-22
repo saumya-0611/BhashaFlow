@@ -41,7 +41,6 @@ export default function AIAnalysis() {
         setData({
           english_summary:          ai_analysis?.english_summary || grievance.title || '',
           category:                 grievance.category || 'other',
-          priority:                 grievance.priority || 'medium',
           keywords:                 ai_analysis?.keywords || [],
           confidence_score:         ai_analysis?.confidence_score,
           detected_language:        ai_analysis?.detected_language || grievance.original_language || 'en-IN',
@@ -93,11 +92,10 @@ export default function AIAnalysis() {
     );
   }
 
-  // ── Destructure — use ONLY category/priority (no llm_* fallbacks) ──
+  // ── Destructure — use ONLY category (no llm_* fallbacks) ──
   const {
     english_summary          = '',
     category                 = 'other',
-    priority                 = 'medium',
     portal_links             = null,
     nearby_offices           = [],
     procedure_steps          = [],
@@ -165,15 +163,6 @@ export default function AIAnalysis() {
                 <div className="class-item">
                   <span className="class-label">Category</span>
                   <span className="class-value" style={{ textTransform: 'capitalize' }}>{category}</span>
-                </div>
-                <div className="class-item">
-                  <span className="class-label">Predicted Priority</span>
-                  <span className={`class-value ${
-                    (priority?.toLowerCase() === 'high' || priority?.toLowerCase() === 'critical')
-                      ? 'severity-high' : ''
-                  }`}>
-                    {priority}
-                  </span>
                 </div>
                 {confidence_score != null && (
                   <div className="class-item">

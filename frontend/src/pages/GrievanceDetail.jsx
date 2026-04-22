@@ -97,8 +97,6 @@ export default function GrievanceDetail() {
               }`}>
                 {grievance.status ? grievance.status.replace('_', ' ').toUpperCase() : 'PENDING'}
               </span>
-              <span className={`chip ${grievance.priority === 'critical' ? 'chip-error' : 'chip-primary'}`}>
-                {grievance.priority || 'Normal'} Priority
               </span>
             </div>
           </div>
@@ -197,7 +195,6 @@ export default function GrievanceDetail() {
               </div>
               <p className="ai-insight-text">
                 <strong>Category:</strong> {grievance.category || 'General'} &nbsp;|&nbsp;
-                <strong>Priority:</strong> {grievance.priority || 'Normal'} &nbsp;|&nbsp;
                 {/* FIX: confidence_score lives on AiAnalysis */}
                 <strong>Confidence:</strong> {aiAnalysis?.confidence_score
                   ? `${Math.round(aiAnalysis.confidence_score * 100)}%`

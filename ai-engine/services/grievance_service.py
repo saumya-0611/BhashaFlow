@@ -38,7 +38,7 @@ async def process_grievance_full(
     {
         success, original_text, english_text, detected_language,
         input_type, title, english_summary, verification_sentence,
-        category, priority, keywords, confidence_score,
+        category, keywords, confidence_score,
         ocr_raw_text, stt_transcript, processing_ms
     }
     """
@@ -131,8 +131,8 @@ async def process_grievance_full(
     logger.info("Running Gemini analysis...")
     gemini_result = analyze_with_gemini(english_text, detected_language)
     logger.info(
-        "Gemini done: category=%s, priority=%s, confidence=%.2f",
-        gemini_result["category"], gemini_result["priority"], gemini_result["confidence_score"]
+        "Gemini done: category=%s, confidence=%.2f",
+        gemini_result["category"], gemini_result["confidence_score"]
     )
 
     # ── STEP 4: Assemble and return ───────────────────────────────────
@@ -149,7 +149,6 @@ async def process_grievance_full(
         "english_summary": gemini_result["english_summary"],
         "verification_sentence": gemini_result["verification_sentence"],
         "category": gemini_result["category"],
-        "priority": gemini_result["priority"],
         "keywords": gemini_result["keywords"],
         "confidence_score": gemini_result["confidence_score"],
         # Raw intermediates (null if not applicable)

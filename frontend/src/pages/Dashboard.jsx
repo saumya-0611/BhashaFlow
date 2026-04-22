@@ -157,8 +157,8 @@ export default function Dashboard() {
               <h3>AI Powered Insights</h3>
             </div>
             <p>
-              Based on your history, the system is actively monitoring your reports.
-              We estimate high priority tracking for civic anomalies.
+              Based on your history, the system is actively monitoring your reports
+              and ensuring they are routed to the correct departments.
             </p>
           </div>
 

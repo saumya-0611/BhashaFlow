@@ -32,10 +32,6 @@ const grievanceSchema = new mongoose.Schema({
       'rti', 'electricity_water', 'national_general', 'state_general', 'other'
     ]
   },
-  priority: {
-    type: String,
-    enum: ['low', 'medium', 'high', 'critical']
-  },
   assigned_to: { type: String },
   user_name: { type: String },
   user_phone: { type: String },
