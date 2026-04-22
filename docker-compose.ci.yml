@@ -9,17 +9,17 @@
 
 services:
   ai-engine:
-    ports:
+    ports: !override
       - "9000:8000"
 
   backend:
-    ports:
+    ports: !override
       - "6000:5000"
     environment:
       - AI_ENGINE_URL=http://ai-engine:8000   # internal network stays the same
 
   frontend:
-    ports:
+    ports: !override
       - "4000:80"
     build:
       args:
