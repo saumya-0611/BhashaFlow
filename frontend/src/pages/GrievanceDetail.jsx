@@ -97,7 +97,6 @@ export default function GrievanceDetail() {
               }`}>
                 {grievance.status ? grievance.status.replace('_', ' ').toUpperCase() : 'PENDING'}
               </span>
-              </span>
             </div>
           </div>
         </section>
