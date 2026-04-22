@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
+import { useLocation, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
 import api from '../utils/api';
@@ -18,7 +18,6 @@ import './AIAnalysis.css';
 export default function AIAnalysis() {
   const { id }    = useParams();
   const location  = useLocation();
-  const navigate  = useNavigate();
 
   const [data, setData]       = useState(location.state || null);
   const [loading, setLoading] = useState(!location.state);
@@ -41,11 +40,10 @@ export default function AIAnalysis() {
           keywords:                 ai_analysis?.keywords || [],
           confidence_score:         ai_analysis?.confidence_score,
           detected_language:        ai_analysis?.detected_language || grievance.original_language || 'en-IN',
-          // Submit response fields — may not be present on refresh, show graceful empty
-          portal_links:             null,
-          nearby_offices:           [],
-          procedure_steps:          [],
-          expected_resolution_days: null,
+          portal_links:             grievance.portal_links || null,
+          nearby_offices:           grievance.nearby_offices || [],
+          procedure_steps:          grievance.procedure_steps || [],
+          expected_resolution_days: grievance.expected_resolution_days || null,
         });
       } catch (err) {
         setError('Could not load grievance analysis. Please try again from the dashboard.');
@@ -210,7 +208,7 @@ export default function AIAnalysis() {
                   <p style={{ color: 'var(--outline)', fontSize: 'var(--body-sm)' }}>
                     {location.state
                       ? 'No specific portals matched for your state/category combination.'
-                      : 'Portal data is only available immediately after submission.'}
+                      : 'No persisted portal data is available for this grievance.'}
                   </p>
                 )}
               </div>
@@ -233,7 +231,7 @@ export default function AIAnalysis() {
                   <p style={{ color: 'var(--outline)', fontSize: 'var(--body-sm)' }}>
                     {location.state
                       ? 'No procedure steps available for this category/state.'
-                      : 'Procedure steps are only available immediately after submission.'}
+                      : 'No persisted procedure steps are available for this grievance.'}
                   </p>
                 )}
               </div>
@@ -243,7 +241,7 @@ export default function AIAnalysis() {
             <div className="ai-cta">
               <p>Move forward with your application or keep a record for your files.</p>
               <div className="ai-cta-btns">
-                <button className="btn btn-primary" onClick={() => alert('PDF generation coming soon!')}>
+                <button className="btn btn-primary" onClick={() => window.print()}>
                   <span className="material-symbols-outlined">download</span>
                   Download PDF Summary
                 </button>
@@ -284,7 +282,7 @@ export default function AIAnalysis() {
                 <p style={{ fontSize: '14px', color: 'var(--outline)' }}>
                   {location.state
                     ? 'No nearby offices found for your district.'
-                    : 'Nearby offices are only available immediately after submission.'}
+                    : 'No persisted nearby offices are available for this grievance.'}
                 </p>
               )}
             </div>

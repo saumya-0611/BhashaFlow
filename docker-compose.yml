@@ -31,6 +31,8 @@ services:
       # FIX: was missing — backend uses this to reach ai-engine container
       - AI_ENGINE_URL=http://ai-engine:8000
       - BACKEND_URL=${BACKEND_URL:-http://localhost:5000}
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       - ai-engine
 
@@ -43,3 +45,7 @@ services:
     environment:
       - SARVAM_API_KEY=${SARVAM_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+
+volumes:
+  uploads_data:

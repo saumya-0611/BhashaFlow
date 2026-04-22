@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from services.config import (
     SARVAM_API_KEY,
     GEMINI_API_KEY,
+    GEMINI_MODEL,
     LANG_CODES,
     LANG_NAMES,
     BCP47_TO_SHORT,
@@ -76,8 +77,8 @@ async def lifespan(app: FastAPI):
             test_client = genai.Client(api_key=GEMINI_API_KEY)
             
             # Real API check to confirm quota and model access
-            test_client.models.get(model="gemini-3-flash-preview")
-            logger.info("✅ Gemini connection verified (gemini-3-flash-preview).")
+            test_client.models.get(model=GEMINI_MODEL)
+            logger.info("✅ Gemini connection verified (%s).", GEMINI_MODEL)
         except Exception as e:
             logger.error(f"❌ Gemini Verification Failed: {e}")
 

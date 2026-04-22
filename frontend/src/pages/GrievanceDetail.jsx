@@ -4,12 +4,6 @@ import DashboardLayout from '../components/DashboardLayout';
 import api from '../utils/api';
 import './GrievanceDetail.css';
 
-const timeAgo = (date) => {
-  if (!date) return '';
-  const d = Math.floor((Date.now() - new Date(date)) / 86400000);
-  return d === 0 ? 'Today' : d === 1 ? 'Yesterday' : `${d} days ago`;
-};
-
 export default function GrievanceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();

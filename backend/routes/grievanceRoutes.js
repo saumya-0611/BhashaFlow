@@ -62,11 +62,23 @@ async function processIngest(req, res, inputType) {
       });
     }
 
-    const aiResponse = await axios.post(
-      `${AI_ENGINE_URL}/process-grievance-full`,
-      formData,
-      { headers: formData.getHeaders(), timeout: 90000 }
-    );
+    let aiResponse;
+    try {
+      aiResponse = await axios.post(
+        `${AI_ENGINE_URL}/process-grievance-full`,
+        formData,
+        { headers: formData.getHeaders(), timeout: 90000 }
+      );
+    } catch (aiErr) {
+      console.error('AI engine unavailable during ingest:', aiErr.message);
+      grievance.status = 'pending';
+      await grievance.save();
+      return res.status(503).json({
+        message: 'AI Engine unavailable. Your grievance was saved.',
+        grievance_id: grievance._id,
+        error: 'AI_ENGINE_UNAVAILABLE',
+      });
+    }
     const aiData = aiResponse.data;
 
     // 3. Save AiAnalysis document
@@ -105,6 +117,7 @@ async function processIngest(req, res, inputType) {
       priority:              aiData.priority  || 'medium',
       keywords:              aiData.keywords  || [],
       english_summary:       aiData.english_summary || aiData.english_text || '',
+      original_text:          grievance.original_text || '',
       confidence_score:      aiData.confidence_score || 0,
     });
 
@@ -203,7 +216,6 @@ router.post('/submit', auth, async (req, res) => {
     grievance.pincode    = pincode;
     grievance.address    = translatedAddress;
     grievance.landmark   = landmark;
-    await grievance.save();
 
     // Nominatim for nearby offices
     let nearbyOffices = [];
@@ -225,19 +237,28 @@ router.post('/submit', auth, async (req, res) => {
 
     const category   = grievance.category || 'other';
     const portalInfo = PORTAL_DATA[category]?.[state] || null;
+    const portalLinks = portalInfo ? {
+      portal_name: portalInfo.portal_name,
+      portal_url:  portalInfo.portal_url,
+      helpline:    portalInfo.helpline,
+    } : null;
+    const procedureSteps = portalInfo ? portalInfo.procedure_steps : [];
+    const expectedResolutionDays = RESOLUTION_DAYS[category] || RESOLUTION_DAYS.other;
+
+    grievance.portal_links = portalLinks;
+    grievance.nearby_offices = nearbyOffices;
+    grievance.procedure_steps = procedureSteps;
+    grievance.expected_resolution_days = expectedResolutionDays;
+    await grievance.save();
 
     // FIX: response shape matches what AIAnalysis.jsx now expects
     res.status(200).json({
       grievance_id:             grievance._id,
       nearby_offices:           nearbyOffices,
       // FIX: portal_links is a single object (or null) — frontend normalises it to array
-      portal_links: portalInfo ? {
-        portal_name: portalInfo.portal_name,
-        portal_url:  portalInfo.portal_url,
-        helpline:    portalInfo.helpline,
-      } : null,
-      procedure_steps:          portalInfo ? portalInfo.procedure_steps : [],
-      expected_resolution_days: RESOLUTION_DAYS[category] || RESOLUTION_DAYS.other,
+      portal_links:             portalLinks,
+      procedure_steps:          procedureSteps,
+      expected_resolution_days: expectedResolutionDays,
     });
 
   } catch (error) {

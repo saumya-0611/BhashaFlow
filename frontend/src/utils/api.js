@@ -2,7 +2,7 @@
  * BhashaFlow — centralised Axios instance.
  *
  * FIX: baseURL reads from VITE_BACKEND_URL (injected at build time).
- * FIX: 401 now shows alert before redirect so citizen understands what happened.
+ * FIX: 401 clears the expired session and redirects without blocking the UI.
  * FIX: timeout increased to 90s to handle slow AI engine responses.
  */
 import axios from 'axios';
@@ -30,8 +30,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.clear();
-      // FIX: alert before redirect so citizen knows why they were logged out
-      alert('Your session has expired. Please log in again.');
+      console.warn('Session expired. Redirecting to login.');
       window.location.href = '/auth';
     }
     return Promise.reject(error);

@@ -36,6 +36,10 @@ const grievanceSchema = new mongoose.Schema({
   pincode: { type: String },
   address: { type: String },
   landmark: { type: String },
+  portal_links: { type: mongoose.Schema.Types.Mixed, default: null },
+  nearby_offices: { type: [mongoose.Schema.Types.Mixed], default: [] },
+  procedure_steps: { type: [String], default: [] },
+  expected_resolution_days: { type: Number, default: null },
   follow_up_sent: { type: Boolean, default: false },
   submitted_at: { type: Date, default: Date.now },
   resolved_at: { type: Date }

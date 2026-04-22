@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
 import api from '../utils/api';
 import './SubmitGrievance.css';
 
 export default function SubmitGrievance() {
   const navigate = useNavigate();
+  const { state } = useLocation();
   const [activeTab, setActiveTab] = useState('text');
   
   // text tab
-  const [text, setText] = useState('');
+  const [text, setText] = useState(state?.prefillText || '');
   
   // voice tab
   const [isRecording, setIsRecording] = useState(false);
@@ -225,6 +227,13 @@ export default function SubmitGrievance() {
               {/* Submit Button */}
               <button type="submit" className="btn btn-primary submit-btn mt-6" disabled={submitting} style={{ width: '100%', marginTop: '24px' }}>
                 {submitting ? 'Our AI is reading your grievance...' : 'Submit Grievance'}
+                {submitting && (
+                  <motion.div
+                    style={{ width: 18, height: 18, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', marginLeft: 8 }}
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+                  />
+                )}
                 {!submitting && <span className="material-symbols-outlined ml-2">send</span>}
               </button>
 
