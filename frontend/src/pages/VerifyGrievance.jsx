@@ -1,14 +1,13 @@
 /**
  * VerifyGrievance.jsx
- * Route: /verify/:id
+ * Route: /verify/:id  —  Step 2 of 3
  *
- * Shows the AI-generated verification sentence in the citizen's language.
- * Citizen taps Yes (confirmed) or No (retry).
- * Data comes from location.state set by SubmitGrievance navigate() call —
- * no extra API fetch needed.
+ * FIX: No longer depends exclusively on location.state.
+ * If state is missing (refresh / direct URL), fetches from GET /api/grievance/:id.
+ * Removed fake fallback "Kya yeh sahi hai?" — shows a loading spinner until real data arrives.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
@@ -22,21 +21,52 @@ const pageVariants = {
 
 const cardVariants = {
   initial: { opacity: 0, scale: 0.94, y: 24 },
-  animate: { opacity: 1, scale: 1,    y: 0,  transition: { delay: 0.15, duration: 0.5, type: 'spring', stiffness: 280, damping: 28 } },
+  animate: { opacity: 1, scale: 1, y: 0, transition: { delay: 0.15, duration: 0.5, type: 'spring', stiffness: 280, damping: 28 } },
 };
 
 export default function VerifyGrievance() {
-  const { id }       = useParams();
-  const navigate     = useNavigate();
-  const { state }    = useLocation(); // data passed by SubmitGrievance
-  const [loading, setLoading] = useState(false);
+  const { id }    = useParams();
+  const navigate  = useNavigate();
+  const { state } = useLocation();
+
+  // ── Data state ────────────────────────────────────────────────
+  const [verifyData, setVerifyData] = useState(state || null);
+  const [dataLoading, setDataLoading] = useState(!state);
+  const [fetchError, setFetchError]   = useState('');
+
+  // ── Action state ──────────────────────────────────────────────
+  const [loading, setLoading]   = useState(false);
   const [answered, setAnswered] = useState(false);
 
-  // Fallback if navigated directly without state
-  const verificationSentence = state?.verification_sentence || 'Kya yeh sahi hai?';
-  const category             = state?.category              || 'other';
-  const detectedLanguage     = state?.detected_language     || 'en-IN';
-  const keywords             = state?.keywords              || [];
+  // ── Fallback fetch if navigated directly without state ────────
+  useEffect(() => {
+    if (state) return; // already have data from navigation
+
+    const fetchData = async () => {
+      try {
+        const res = await api.get(`/api/grievance/${id}`);
+        const { grievance, ai_analysis } = res.data;
+
+        // Reconstruct the same shape SubmitGrievance would have passed
+        setVerifyData({
+          grievance_id:          grievance._id,
+          verification_sentence: ai_analysis?.verification_sentence || '',
+          detected_language:     ai_analysis?.detected_language || grievance.original_language || 'en-IN',
+          category:              grievance.category || 'other',
+          priority:              grievance.priority || 'medium',
+          keywords:              ai_analysis?.keywords || [],
+          english_summary:       ai_analysis?.english_summary || grievance.title || '',
+          confidence_score:      ai_analysis?.confidence_score,
+        });
+      } catch (err) {
+        setFetchError('Could not load grievance data. Please go back and try again.');
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, state]);
 
   const handleConfirm = async (confirmed) => {
     setLoading(true);
@@ -48,11 +78,10 @@ export default function VerifyGrievance() {
       });
 
       if (!confirmed || data.retry) {
-        // Citizen rejected — go back to submit
         navigate('/submit');
       } else {
-        // Confirmed — proceed to location form
-        navigate(`/grievance-form/${id}`);
+        // Forward verifyData so GrievanceForm has it for the next step
+        navigate(`/grievance-form/${id}`, { state: verifyData });
       }
     } catch (err) {
       console.error('Confirm error:', err);
@@ -61,6 +90,60 @@ export default function VerifyGrievance() {
       setAnswered(false);
     }
   };
+
+  // ── Loading state ─────────────────────────────────────────────
+  if (dataLoading) {
+    return (
+      <div className="verify-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <motion.div
+            style={{ width: 40, height: 40, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 16px' }}
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
+          />
+          <p style={{ color: 'var(--on-surface-variant)' }}>Loading your grievance…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Error state ───────────────────────────────────────────────
+  if (fetchError || !verifyData) {
+    return (
+      <div className="verify-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="card" style={{ padding: '32px', textAlign: 'center', maxWidth: 400 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--error)' }}>error</span>
+          <p style={{ marginTop: 16, marginBottom: 24 }}>{fetchError || 'Grievance data not available.'}</p>
+          <button className="btn btn-primary" onClick={() => navigate('/submit')}>
+            Back to Submit
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const { verification_sentence, category, detected_language, keywords } = verifyData;
+
+  // ── No verification sentence means Gemini fallback fired ─────
+  if (!verification_sentence) {
+    return (
+      <div className="verify-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div className="card" style={{ padding: '32px', textAlign: 'center', maxWidth: 400 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--saffron)' }}>warning</span>
+          <p style={{ marginTop: 16, marginBottom: 8, fontWeight: 600 }}>AI analysis incomplete</p>
+          <p style={{ color: 'var(--on-surface-variant)', marginBottom: 24 }}>
+            The AI could not fully analyze your grievance right now. You can proceed anyway or retry.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button className="btn btn-outline" onClick={() => navigate('/submit')}>Retry</button>
+            <button className="btn btn-primary" onClick={() => navigate(`/grievance-form/${id}`, { state: verifyData })}>
+              Proceed Anyway
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -101,7 +184,7 @@ export default function VerifyGrievance() {
           </div>
         </div>
 
-        {/* Verification sentence — the key element */}
+        {/* Verification sentence */}
         <motion.div
           className="verify-sentence-wrap"
           initial={{ opacity: 0, y: 8 }}
@@ -109,10 +192,10 @@ export default function VerifyGrievance() {
           transition={{ delay: 0.4, duration: 0.4 }}
         >
           <span className="verify-quote-icon material-symbols-outlined">format_quote</span>
-          <p className="verify-sentence">{verificationSentence}</p>
+          <p className="verify-sentence">{verification_sentence}</p>
         </motion.div>
 
-        {/* Detected category + language chips */}
+        {/* Chips */}
         <motion.div
           className="verify-chips"
           initial={{ opacity: 0 }}
@@ -125,12 +208,12 @@ export default function VerifyGrievance() {
           </span>
           <span className="chip chip-secondary">
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>translate</span>
-            {detectedLanguage}
+            {detected_language}
           </span>
         </motion.div>
 
         {/* Keywords */}
-        {keywords.length > 0 && (
+        {keywords?.length > 0 && (
           <motion.div
             className="verify-keywords"
             initial={{ opacity: 0 }}
@@ -176,7 +259,6 @@ export default function VerifyGrievance() {
                   <span className="material-symbols-outlined">check_circle</span>
                   Haan / Yes
                 </motion.button>
-
                 <motion.button
                   className="btn verify-btn-no"
                   onClick={() => handleConfirm(false)}
@@ -188,7 +270,6 @@ export default function VerifyGrievance() {
                   Nahi / No
                 </motion.button>
               </div>
-
               <p className="verify-hint">
                 Tap <strong>No</strong> if the AI misunderstood — you can describe it again.
               </p>

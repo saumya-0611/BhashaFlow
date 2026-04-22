@@ -1,10 +1,13 @@
 /**
  * GrievanceForm.jsx
- * Route: /grievance-form/:id
- * Step 3 of the citizen flow — collects location and contact details.
+ * Route: /grievance-form/:id  —  Step 3 of 3
+ *
+ * FIX: No longer depends exclusively on location.state.
+ * If prevState is missing (refresh / direct URL), fetches from GET /api/grievance/:id.
+ * Added error handling UI for API failures.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
@@ -32,38 +35,68 @@ const fieldVariants = {
   animate: (i) => ({ opacity: 1, y: 0, transition: { delay: 0.1 + i * 0.07 } }),
 };
 
+const LOADING_MESSAGES = [
+  'Translating your address…',
+  'Finding nearby offices…',
+  'Looking up portal links…',
+  'Almost there…',
+];
+
 export default function GrievanceForm() {
-  const { id }           = useParams();
-  const navigate         = useNavigate();
-  // FIX: import useLocation and read prior state so we can forward it
+  const { id }               = useParams();
+  const navigate             = useNavigate();
   const { state: prevState } = useLocation();
 
+  // ── Prior step data (carries english_summary, category etc. forward) ──
+  const [stepData, setStepData]   = useState(prevState || null);
+  const [dataLoading, setDataLoading] = useState(!prevState);
+  const [fetchError, setFetchError]   = useState('');
+
+  // ── Form state ────────────────────────────────────────────────
   const [form, setForm] = useState({
-    user_name:  '',
-    user_phone: '',
-    state:      '',
-    district:   '',
-    pincode:    '',
-    address:    '',
-    landmark:   '',
+    user_name: '', user_phone: '', state: '',
+    district: '', pincode: '', address: '', landmark: '',
   });
-  const [submitting, setSubmitting]   = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [loadingMsg, setLoadingMsg]   = useState('');
 
   const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-  const LOADING_MESSAGES = [
-    'Translating your address…',
-    'Finding nearby offices…',
-    'Looking up portal links…',
-    'Almost there…',
-  ];
+  // ── Fallback fetch if no state (refresh / direct URL) ─────────
+  useEffect(() => {
+    if (prevState) return;
+
+    const fetchData = async () => {
+      try {
+        const res = await api.get(`/api/grievance/${id}`);
+        const { grievance, ai_analysis } = res.data;
+        setStepData({
+          grievance_id:     grievance._id,
+          english_summary:  ai_analysis?.english_summary || grievance.title || '',
+          category:         grievance.category || 'other',
+          priority:         grievance.priority || 'medium',
+          keywords:         ai_analysis?.keywords || [],
+          confidence_score: ai_analysis?.confidence_score,
+          detected_language: ai_analysis?.detected_language || grievance.original_language || 'en-IN',
+          verification_sentence: ai_analysis?.verification_sentence || '',
+        });
+      } catch (err) {
+        setFetchError('Could not load grievance data. Please go back and resubmit.');
+      } finally {
+        setDataLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, prevState]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError('');
 
     if (!form.state || !form.district || !form.pincode || !form.address) {
-      alert('Please fill in State, District, Pincode and Address.');
+      setSubmitError('Please fill in State, District, Pincode and Address.');
       return;
     }
 
@@ -76,7 +109,6 @@ export default function GrievanceForm() {
     }, 2500);
 
     try {
-      // FIX: destructure as { data } to match the variable used below
       const { data } = await api.post('/api/grievance/submit', {
         grievance_id: id,
         ...form,
@@ -84,28 +116,61 @@ export default function GrievanceForm() {
 
       clearInterval(msgInterval);
 
-      // FIX: navigate with merged state — prevState from /verify, plus submit response
-      // AIAnalysis.jsx reads: english_summary, category, priority, portal_links,
-      // nearby_offices, procedure_steps — all now present
+      // Merge: stepData carries AI fields; data carries portal/offices/procedure
       navigate(`/ai-result/${id}`, {
         state: {
-          ...prevState,         // carries english_summary, category, priority from ingest
-          ...data,              // carries portal_links, nearby_offices, procedure_steps from submit
+          ...stepData,
+          ...data,
         },
       });
     } catch (err) {
       clearInterval(msgInterval);
-      alert(err.response?.data?.message || 'Submission failed. Please try again.');
+      setSubmitError(err.response?.data?.message || 'Submission failed. Please try again.');
       setSubmitting(false);
     }
   };
 
+  // ── Loading state ─────────────────────────────────────────────
+  if (dataLoading) {
+    return (
+      <DashboardLayout>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ textAlign: 'center' }}>
+            <motion.div
+              style={{ width: 40, height: 40, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 16px' }}
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
+            />
+            <p style={{ color: 'var(--on-surface-variant)' }}>Loading your grievance…</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // ── Fetch error ───────────────────────────────────────────────
+  if (fetchError) {
+    return (
+      <DashboardLayout>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div className="card" style={{ padding: '32px', textAlign: 'center', maxWidth: 400 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--error)' }}>error</span>
+            <p style={{ margin: '16px 0 24px' }}>{fetchError}</p>
+            <button className="btn btn-primary" onClick={() => navigate('/submit')}>
+              Back to Submit
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   const fields = [
-    { label: 'Your Full Name',      field: 'user_name',  type: 'text', placeholder: 'Rajesh Kumar',        half: true,  custom: 0 },
-    { label: 'Phone Number',        field: 'user_phone', type: 'tel',  placeholder: '+91 98XXXXXXXX',      half: true,  custom: 1 },
-    { label: 'District',            field: 'district',   type: 'text', placeholder: 'e.g. Gurugram',       half: true,  custom: 3 },
-    { label: 'Pincode',             field: 'pincode',    type: 'text', placeholder: '122001',              half: true,  custom: 4 },
-    { label: 'Landmark (optional)', field: 'landmark',   type: 'text', placeholder: 'Near city hall',      half: false, custom: 6 },
+    { label: 'Your Full Name',      field: 'user_name',  type: 'text', placeholder: 'Rajesh Kumar',   half: true,  custom: 0 },
+    { label: 'Phone Number',        field: 'user_phone', type: 'tel',  placeholder: '+91 98XXXXXXXX', half: true,  custom: 1 },
+    { label: 'District',            field: 'district',   type: 'text', placeholder: 'e.g. Gurugram',  half: true,  custom: 3 },
+    { label: 'Pincode',             field: 'pincode',    type: 'text', placeholder: '122001',         half: true,  custom: 4 },
+    { label: 'Landmark (optional)', field: 'landmark',   type: 'text', placeholder: 'Near city hall', half: false, custom: 6 },
   ];
 
   return (
@@ -131,30 +196,38 @@ export default function GrievanceForm() {
           </div>
           <h1>Tell us where you are</h1>
           <p>Fill in your location so we can suggest the right offices and portals near you.</p>
+
+          {/* Show category/priority from prior step if available */}
+          {stepData && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {stepData.category && (
+                <span className="chip chip-primary" style={{ textTransform: 'capitalize' }}>
+                  {stepData.category}
+                </span>
+              )}
+              {stepData.priority && (
+                <span className="chip chip-secondary" style={{ textTransform: 'capitalize' }}>
+                  {stepData.priority} priority
+                </span>
+              )}
+            </div>
+          )}
         </section>
 
         <form onSubmit={handleSubmit} className="gform-form">
           <div className="gform-grid">
-            {/* Left column */}
             <div className="gform-main">
 
               {/* State dropdown */}
               <motion.div className="field-group" custom={2} variants={fieldVariants} initial="initial" animate="animate">
                 <label className="input-label">State / Union Territory</label>
-                <select
-                  className="input-field"
-                  value={form.state}
-                  onChange={set('state')}
-                  required
-                >
+                <select className="input-field" value={form.state} onChange={set('state')} required>
                   <option value="">Select your state</option>
-                  {INDIAN_STATES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
+                  {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
               </motion.div>
 
-              {/* Half-width fields row */}
+              {/* Half-width fields */}
               <div className="gform-row">
                 {fields.filter(f => f.half).map((f) => (
                   <motion.div key={f.field} className="field-group" custom={f.custom} variants={fieldVariants} initial="initial" animate="animate">
@@ -170,7 +243,7 @@ export default function GrievanceForm() {
                 ))}
               </div>
 
-              {/* Address textarea */}
+              {/* Address */}
               <motion.div className="field-group" custom={5} variants={fieldVariants} initial="initial" animate="animate">
                 <label className="input-label">Full Address</label>
                 <textarea
@@ -201,7 +274,28 @@ export default function GrievanceForm() {
                 </motion.div>
               ))}
 
-              {/* Submit */}
+              {/* Inline error message */}
+              {submitError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    background: 'var(--error-container, #fdecea)',
+                    color: 'var(--error)',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>
+                  {submitError}
+                </motion.div>
+              )}
+
+              {/* Submit button */}
               <motion.button
                 type="submit"
                 className="btn btn-primary gform-submit"
@@ -230,7 +324,7 @@ export default function GrievanceForm() {
               </motion.button>
             </div>
 
-            {/* Right column */}
+            {/* Right column info cards */}
             <aside className="gform-aside">
               <motion.div
                 className="card surface-low gform-info"

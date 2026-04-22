@@ -34,18 +34,19 @@ export default function Sidebar({ isAdmin = false }) {
 
   const citizenLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
-    { name: 'Submit New', path: '/submit', icon: 'add_circle' },
-    { name: 'AI Insights', path: '/ai-result/demo', icon: 'psychology' }, // For demo
+    { name: 'Submit New', path: '/submit',    icon: 'add_circle' },
+    // FIX: removed /ai-result/demo — that route requires a real grievance ID
+    // AI Insights are accessible via Dashboard → grievance card → detail
   ];
 
   const adminLinks = [
-    { name: 'Overview', path: '/admin', icon: 'dashboard' },
-    { name: 'All Grievances', path: '/admin/grievances', icon: 'description' },
-    { name: 'AI Insights', path: '/admin/ai-insights', icon: 'psychology' },
+    { name: 'Overview',        path: '/admin',             icon: 'dashboard'    },
+    { name: 'All Grievances',  path: '/admin/grievances',  icon: 'description'  },
+    { name: 'AI Insights',     path: '/admin/ai-insights', icon: 'psychology'   },
   ];
 
   const commonLinks = [
-    { name: 'Help', path: '/help', icon: 'help' },
+    { name: 'Help',     path: '/help',     icon: 'help'     },
     { name: 'Settings', path: '/settings', icon: 'settings' },
   ];
 
@@ -54,6 +55,7 @@ export default function Sidebar({ isAdmin = false }) {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
     window.location.href = '/auth';
   };
 
@@ -68,11 +70,15 @@ export default function Sidebar({ isAdmin = false }) {
       {/* Navigation */}
       <nav className="sidebar-nav">
         {links.map((link) => {
-          const isActive = location.pathname === link.path || location.pathname.startsWith(link.path) && link.path !== '/dashboard' && link.path !== '/admin';
+          const isActive =
+            location.pathname === link.path ||
+            (location.pathname.startsWith(link.path) &&
+              link.path !== '/dashboard' &&
+              link.path !== '/admin');
           return (
-            <Link 
-              key={link.name} 
-              to={link.path} 
+            <Link
+              key={link.name}
+              to={link.path}
               className={`nav-item ${isActive ? 'active' : ''}`}
               onClick={(e) => handleNavClick(e, link.path)}
             >
@@ -83,9 +89,9 @@ export default function Sidebar({ isAdmin = false }) {
             </Link>
           );
         })}
-        
+
         <div className="nav-divider"></div>
-        
+
         {commonLinks.map((link) => (
           <Link key={link.name} to={link.path} className="nav-item" onClick={(e) => handleNavClick(e, link.path)}>
             <span className="material-symbols-outlined">{link.icon}</span>

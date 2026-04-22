@@ -1,47 +1,111 @@
 /**
  * AIAnalysis.jsx
- * Route: /ai-result/:id
- * Step 4 — shows AI results, government portals, nearby offices, procedure steps.
+ * Route: /ai-result/:id  —  Step 4
  *
- * Data arrives via location.state (set by GrievanceForm navigate call).
- * State shape (merged from /ingest + /submit responses):
- * {
- *   english_summary, category, priority, keywords, confidence_score,
- *   portal_links: { portal_name, portal_url, helpline } | null,
- *   nearby_offices: [{ name, lat, lng }],
- *   procedure_steps: ["Step 1…", "Step 2…"],
- *   expected_resolution_days: number
- * }
+ * FIX: No longer depends exclusively on location.state.
+ * If state is missing (refresh / direct URL), fetches from GET /api/grievance/:id.
+ * Consistent field names: category, priority only (no llm_category fallback).
+ * Added loading and error states.
  */
 
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
+import api from '../utils/api';
 import './AIAnalysis.css';
 
 export default function AIAnalysis() {
-  const { id }       = useParams();
-  const location     = useLocation();
-  const navigate     = useNavigate();
+  const { id }    = useParams();
+  const location  = useLocation();
+  const navigate  = useNavigate();
 
-  const data = location.state || {};
+  const [data, setData]       = useState(location.state || null);
+  const [loading, setLoading] = useState(!location.state);
+  const [error, setError]     = useState('');
 
+  // ── Fallback fetch if no state (refresh / direct URL) ─────────
+  useEffect(() => {
+    if (location.state) return;
+
+    const fetchData = async () => {
+      try {
+        const res = await api.get(`/api/grievance/${id}`);
+        const { grievance, ai_analysis } = res.data;
+
+        // Reconstruct the shape GrievanceForm.navigate() would have passed
+        setData({
+          english_summary:          ai_analysis?.english_summary || grievance.title || '',
+          category:                 grievance.category || 'other',
+          priority:                 grievance.priority || 'medium',
+          keywords:                 ai_analysis?.keywords || [],
+          confidence_score:         ai_analysis?.confidence_score,
+          detected_language:        ai_analysis?.detected_language || grievance.original_language || 'en-IN',
+          // Submit response fields — may not be present on refresh, show graceful empty
+          portal_links:             null,
+          nearby_offices:           [],
+          procedure_steps:          [],
+          expected_resolution_days: null,
+        });
+      } catch (err) {
+        setError('Could not load grievance analysis. Please try again from the dashboard.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, location.state]);
+
+  // ── Loading ───────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ textAlign: 'center' }}>
+            <motion.div
+              style={{ width: 40, height: 40, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 16px' }}
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
+            />
+            <p style={{ color: 'var(--on-surface-variant)' }}>Loading AI analysis…</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // ── Error ─────────────────────────────────────────────────────
+  if (error || !data) {
+    return (
+      <DashboardLayout>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div className="card" style={{ padding: '32px', textAlign: 'center', maxWidth: 400 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--error)' }}>error</span>
+            <p style={{ margin: '16px 0 24px' }}>{error || 'Analysis data not available.'}</p>
+            <Link to="/dashboard" className="btn btn-primary">Back to Dashboard</Link>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // ── Destructure — use ONLY category/priority (no llm_* fallbacks) ──
   const {
-    // Map these to match the MongoDB keys seen in your screenshots
-    english_summary = data.english_summary || 'No summary generated yet.',
-    category = data.llm_category || data.category || 'General',
-    priority = data.llm_priority || data.priority || 'Normal',
-    portal_links = data.portal_links || null,
-    nearby_offices = data.nearby_offices || [],
-    procedure_steps = data.procedure_steps || [],
-    expected_resolution_days = data.expected_resolution_days || 7,
-    confidence_score = data.confidence_score,
+    english_summary          = '',
+    category                 = 'other',
+    priority                 = 'medium',
+    portal_links             = null,
+    nearby_offices           = [],
+    procedure_steps          = [],
+    expected_resolution_days = null,
+    confidence_score,
   } = data;
 
-  // FIX: normalise portal_links → always an array for the render loop
+  // Normalise portal_links → always an array for the render loop
   const portalsArray = (() => {
     if (!portal_links) return [];
     if (Array.isArray(portal_links)) return portal_links;
-    // Single object shape from backend: { portal_name, portal_url, helpline }
     return [{
       name: portal_links.portal_name,
       url:  portal_links.portal_url,
@@ -66,15 +130,20 @@ export default function AIAnalysis() {
         </section>
 
         {/* English Summary */}
-        <blockquote className="ai-quote card">
-          <span className="material-symbols-outlined quote-icon">format_quote</span>
-          <p style={{ fontStyle: 'normal' }}>
-            <strong>English Summary:</strong> {english_summary}
-          </p>
-        </blockquote>
+        {english_summary ? (
+          <blockquote className="ai-quote card">
+            <span className="material-symbols-outlined quote-icon">format_quote</span>
+            <p style={{ fontStyle: 'normal' }}>
+              <strong>English Summary:</strong> {english_summary}
+            </p>
+          </blockquote>
+        ) : (
+          <div className="card" style={{ padding: '16px', marginBottom: '24px', color: 'var(--outline)' }}>
+            AI summary not available for this grievance.
+          </div>
+        )}
 
         <div className="ai-grid">
-          {/* Left Column */}
           <div className="ai-main">
 
             {/* Classification */}
@@ -92,19 +161,18 @@ export default function AIAnalysis() {
                   <span className="class-label">Predicted Priority</span>
                   <span className={`class-value ${
                     (priority?.toLowerCase() === 'high' || priority?.toLowerCase() === 'critical')
-                      ? 'severity-high'
-                      : ''
+                      ? 'severity-high' : ''
                   }`}>
                     {priority}
                   </span>
                 </div>
-                {confidence_score && (
+                {confidence_score != null && (
                   <div className="class-item">
                     <span className="class-label">AI Confidence</span>
                     <span className="class-value">{Math.round(confidence_score * 100)}%</span>
                   </div>
                 )}
-                {expected_resolution_days && (
+                {expected_resolution_days != null && (
                   <div className="class-item">
                     <span className="class-label">Expected Resolution</span>
                     <span className="class-value">{expected_resolution_days} days</span>
@@ -140,7 +208,9 @@ export default function AIAnalysis() {
                   </a>
                 )) : (
                   <p style={{ color: 'var(--outline)', fontSize: 'var(--body-sm)' }}>
-                    No specific portals matched for your state/category combination.
+                    {location.state
+                      ? 'No specific portals matched for your state/category combination.'
+                      : 'Portal data is only available immediately after submission.'}
                   </p>
                 )}
               </div>
@@ -161,7 +231,9 @@ export default function AIAnalysis() {
                   </ol>
                 ) : (
                   <p style={{ color: 'var(--outline)', fontSize: 'var(--body-sm)' }}>
-                    No procedure steps available for this category/state.
+                    {location.state
+                      ? 'No procedure steps available for this category/state.'
+                      : 'Procedure steps are only available immediately after submission.'}
                   </p>
                 )}
               </div>
@@ -183,7 +255,7 @@ export default function AIAnalysis() {
             </div>
           </div>
 
-          {/* Right Column */}
+          {/* Right aside */}
           <aside className="ai-aside">
 
             {/* Nearby Offices */}
@@ -192,7 +264,6 @@ export default function AIAnalysis() {
                 <span className="material-symbols-outlined">business</span>
                 Nearby Offices
               </h3>
-              {/* FIX: nearby_offices from Nominatim = { name, lat, lng } */}
               {nearby_offices.length > 0 ? nearby_offices.map((office, idx) => (
                 <div key={idx} className="contact-item" style={{ marginBottom: '16px' }}>
                   <span className="contact-label" style={{ fontWeight: 'bold' }}>
@@ -211,12 +282,14 @@ export default function AIAnalysis() {
                 </div>
               )) : (
                 <p style={{ fontSize: '14px', color: 'var(--outline)' }}>
-                  No nearby offices found for your district.
+                  {location.state
+                    ? 'No nearby offices found for your district.'
+                    : 'Nearby offices are only available immediately after submission.'}
                 </p>
               )}
             </div>
 
-            {/* Helpline (from portal_links) */}
+            {/* Helpline */}
             {portal_links?.helpline && (
               <div className="contact-card card surface-low">
                 <h3>
@@ -244,7 +317,7 @@ export default function AIAnalysis() {
               </div>
             </div>
 
-            {/* Eco badge */}
+            {/* Case Metadata */}
             <div className="meta-card card surface-low">
               <h3>Case Metadata</h3>
               <div className="eco-badge">
