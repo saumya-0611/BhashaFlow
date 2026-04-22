@@ -1,8 +1,9 @@
 /**
  * BhashaFlow — centralised Axios instance.
  *
- * FIX: baseURL now reads from VITE_BACKEND_URL (injected at build time by Vite/Docker).
- * Falls back to localhost:5000 for local dev without a .env file.
+ * FIX: baseURL reads from VITE_BACKEND_URL (injected at build time).
+ * FIX: 401 now shows alert before redirect so citizen understands what happened.
+ * FIX: timeout increased to 90s to handle slow AI engine responses.
  */
 import axios from 'axios';
 
@@ -11,7 +12,7 @@ const api = axios.create({
   timeout: 90000,
 });
 
-// ── Request interceptor — attach token ──────────────────────────
+// ── Request interceptor — attach JWT token ──────────────────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -29,6 +30,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.clear();
+      // FIX: alert before redirect so citizen knows why they were logged out
+      alert('Your session has expired. Please log in again.');
       window.location.href = '/auth';
     }
     return Promise.reject(error);
