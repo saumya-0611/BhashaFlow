@@ -235,7 +235,6 @@ export default function CitizenAuth() {
             {[
               { icon: 'translate',     title: '22+ Languages',        desc: 'Hindi, Tamil, Telugu, Bengali & more' },
               { icon: 'psychology',    title: 'AI-Powered Routing',   desc: 'Smart categorization & department mapping' },
-              { icon: 'verified_user', title: 'Govt. Certified',      desc: 'NIC-compliant secure infrastructure' },
             ].map((f) => (
               <motion.div key={f.title} className="auth-feature" variants={staggerItem}>
                 <div className="auth-feature-dot">
