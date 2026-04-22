@@ -17,7 +17,13 @@ pipeline {
         stage('Checkout') {
             steps { checkout scm }
         }
-        
+
+        stage('Cleanup Previous Run') {
+            steps {
+                sh 'docker-compose down --remove-orphans --volumes || true'
+            }
+        }
+
         stage('Prepare Environment') {
             steps {
                 sh '''
@@ -37,26 +43,43 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Build Docker Images') {
             steps {
                 sh 'docker-compose build'
             }
         }
-        
+
         stage('Test & Run') {
             steps {
                 sh 'docker-compose up -d'
+                // Give containers time to initialize
+                sh 'sleep 10'
+                // Verify all containers are actually running
+                sh 'docker-compose ps'
+                sh '''
+                if [ $(docker-compose ps --services --filter "status=running" | wc -l) -lt 3 ]; then
+                    echo "❌ Not all containers are running"
+                    docker-compose logs
+                    exit 1
+                fi
+                echo "✅ All containers are up"
+                '''
             }
         }
     }
 
     post {
+        always {
+            sh 'docker-compose down --remove-orphans || true'
+        }
         failure {
             emailext to: "${env.TECH_LEAD_EMAIL}",
                 subject: "🚨 BhashaFlow Build Failed: ${env.JOB_NAME} [${env.BUILD_NUMBER}]",
                 body: "Build #${env.BUILD_NUMBER} failed. Check: ${env.BUILD_URL}"
         }
-        success { echo 'Build passed!' }
+        success {
+            echo '✅ Build passed!'
+        }
     }
 }
