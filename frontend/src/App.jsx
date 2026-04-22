@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 // Auth
 import CitizenAuth from './pages/CitizenAuth';
 import OAuthSuccess from './pages/OAuthSuccess';
+import ResetPassword from './pages/ResetPassword';
 
 // Citizen pages
 import Dashboard       from './pages/Dashboard';
@@ -26,6 +27,7 @@ function App() {
           {/* ── Public ─────────────────────────────────────── */}
           <Route path="/auth"               element={<CitizenAuth />} />
           <Route path="/auth/oauth-success" element={<OAuthSuccess />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           {/* ── Citizen (protected) ────────────────────────── */}
           <Route path="/dashboard"

@@ -21,6 +21,7 @@ export default function CitizenAuth() {
   const [mode, setMode]     = useState("login");
   const [lEmail, setLEmail] = useState("");
   const [lPass, setLPass]   = useState("");
+  const [fEmail, setFEmail] = useState("");
   const [showL, setShowL]   = useState(false);
   const [sName, setSName]   = useState("");
   const [sEmail, setSEmail] = useState("");
@@ -66,6 +67,21 @@ export default function CitizenAuth() {
       redirectByRole(data.user.role);
     } catch (err) {
       alert(err.response?.data?.message || "Invalid credentials");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Forgot ──────────────────────────────────────────────────────
+  const onForgot = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { data } = await api.post('/api/auth/forgot-password', { email: fEmail });
+      alert(data.message || "Password reset link sent!");
+      setMode("login");
+    } catch (err) {
+      alert("Forgot password failed: " + (err.response?.data?.message || "Server Error"));
     } finally {
       setLoading(false);
     }
@@ -161,21 +177,23 @@ export default function CitizenAuth() {
           transition={{ delay: 0.2, duration: 0.4 }}
         >
           {/* Tab Switcher */}
-          <div className="auth-tabs">
-            {[["login", "Sign In"], ["signup", "Create Account"]].map(([m, label]) => (
-              <button
-                key={m}
-                className={`auth-tab ${mode === m ? 'active' : ''}`}
-                onClick={() => setMode(m)}
-              >
-                {label}
-                {mode === m && (
-                  <motion.div layoutId="authTab" className="tab-indicator"
-                    transition={{ type: "spring", stiffness: 500, damping: 38 }} />
-                )}
-              </button>
-            ))}
-          </div>
+          {mode !== "forgot" && (
+            <div className="auth-tabs">
+              {[["login", "Sign In"], ["signup", "Create Account"]].map(([m, label]) => (
+                <button
+                  key={m}
+                  className={`auth-tab ${mode === m ? 'active' : ''}`}
+                  onClick={() => setMode(m)}
+                >
+                  {label}
+                  {mode === m && (
+                    <motion.div layoutId="authTab" className="tab-indicator"
+                      transition={{ type: "spring", stiffness: 500, damping: 38 }} />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* OAuth error banner */}
           <AnimatePresence>
@@ -254,7 +272,11 @@ export default function CitizenAuth() {
                   </div>
                 </div>
 
-                <div className="forgot-row"><a href="#">Forgot Password?</a></div>
+                <div className="forgot-row">
+                  <button type="button" className="forgot-btn" onClick={() => setMode("forgot")} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                    Forgot Password?
+                  </button>
+                </div>
 
                 <motion.button
                   type="submit"
@@ -273,6 +295,48 @@ export default function CitizenAuth() {
                 </p>
               </motion.form>
 
+            ) : mode === "forgot" ? (
+              <motion.form
+                key="forgot"
+                custom="forgot"
+                variants={formVariants}
+                initial="enter"
+                animate="show"
+                exit="exit"
+                onSubmit={onForgot}
+                className="auth-form"
+              >
+                <div className="form-header">
+                  <h2>Reset Password</h2>
+                  <p>Enter your email to receive a password reset link.</p>
+                </div>
+
+                <div className="field-group">
+                  <label htmlFor="fe" className="input-label">Email Address</label>
+                  <div className="input-wrapper">
+                    <span className="material-symbols-outlined input-icon">mail</span>
+                    <input id="fe" type="email" className="input-field has-icon"
+                      value={fEmail} onChange={e => setFEmail(e.target.value)}
+                      placeholder="citizen@example.gov.in" required />
+                  </div>
+                </div>
+
+                <motion.button
+                  type="submit"
+                  className="btn btn-primary auth-submit"
+                  disabled={loading}
+                  whileHover={{ scale: loading ? 1 : 1.02 }}
+                  whileTap={{ scale: loading ? 1 : 0.98 }}
+                >
+                  {loading ? 'Sending…' : 'Send Reset Link'}
+                  <span className="material-symbols-outlined">send</span>
+                </motion.button>
+
+                <p className="auth-switch">
+                  Remember your password?{" "}
+                  <button type="button" onClick={() => setMode("login")}>Back to login</button>
+                </p>
+              </motion.form>
             ) : (
               <motion.form
                 key="signup"
