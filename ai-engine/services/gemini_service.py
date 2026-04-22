@@ -1,7 +1,6 @@
 """
 BhashaFlow AI Engine — Gemini Service
 
-Model: gemini-3-flash-preview
 Improvements:
   - Native response schema (pydantic) — eliminates _extract_json / regex entirely
   - Fast exponential backoff for 429s (2s, 4s, 8s) — citizen-friendly latency
@@ -16,11 +15,9 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
-from .config import GEMINI_API_KEY
+from .config import GEMINI_API_KEY, GEMINI_MODEL
 
 logger = logging.getLogger(__name__)
-
-GEMINI_MODEL = "gemini-3-flash-preview"
 
 if GEMINI_API_KEY:
     _client = genai.Client(api_key=GEMINI_API_KEY)

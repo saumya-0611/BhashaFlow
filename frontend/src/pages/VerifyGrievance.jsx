@@ -56,6 +56,7 @@ export default function VerifyGrievance() {
           priority:              grievance.priority || 'medium',
           keywords:              ai_analysis?.keywords || [],
           english_summary:       ai_analysis?.english_summary || grievance.title || '',
+          original_text:          grievance.original_text || '',
           confidence_score:      ai_analysis?.confidence_score,
         });
       } catch (err) {
@@ -78,7 +79,7 @@ export default function VerifyGrievance() {
       });
 
       if (!confirmed || data.retry) {
-        navigate('/submit');
+        navigate('/submit', { state: { prefillText: verifyData?.original_text || '' } });
       } else {
         // Forward verifyData so GrievanceForm has it for the next step
         navigate(`/grievance-form/${id}`, { state: verifyData });
@@ -135,7 +136,7 @@ export default function VerifyGrievance() {
             The AI could not fully analyze your grievance right now. You can proceed anyway or retry.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button className="btn btn-outline" onClick={() => navigate('/submit')}>Retry</button>
+            <button className="btn btn-outline" onClick={() => navigate('/submit', { state: { prefillText: verifyData?.original_text || '' } })}>Retry</button>
             <button className="btn btn-primary" onClick={() => navigate(`/grievance-form/${id}`, { state: verifyData })}>
               Proceed Anyway
             </button>

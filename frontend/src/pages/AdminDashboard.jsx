@@ -24,6 +24,8 @@ export default function AdminDashboard() {
   const [filterStatus,   setFilterStatus]   = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     const role = localStorage.getItem('userRole');
@@ -52,6 +54,7 @@ export default function AdminDashboard() {
           params: { status: filterStatus, category: filterCategory, page },
         });
         setGrievances(res.data.grievances || []);
+        setTotalPages(Math.max(1, res.data.pagination?.total_pages || 1));
       } catch (err) {
         console.error('Failed to load list', err);
       } finally {
@@ -59,7 +62,7 @@ export default function AdminDashboard() {
       }
     };
     fetchList();
-  }, [filterStatus, filterCategory, page]);
+  }, [filterStatus, filterCategory, page, refreshKey]);
 
   const statCards = [
     { label: 'Total Tracked',        value: stats.total || 0,
@@ -155,9 +158,9 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button className="btn btn-outline" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} style={{ padding: '4px 8px' }}>&lt;</button>
                 <span style={{ display: 'flex', alignItems: 'center', fontSize: '14px', background: 'var(--surface-container-high)', padding: '0 8px', borderRadius: '4px' }}>
-                  Page {page}
+                  Page {page} / {totalPages}
                 </span>
-                <button className="btn btn-outline" onClick={() => setPage(page + 1)} disabled={grievances.length === 0} style={{ padding: '4px 8px' }}>&gt;</button>
+                <button className="btn btn-outline" onClick={() => setPage(page + 1)} disabled={page >= totalPages} style={{ padding: '4px 8px' }}>&gt;</button>
               </div>
             </h2>
 
@@ -218,7 +221,7 @@ export default function AdminDashboard() {
               <select
                 className="input-field"
                 value={filterCategory}
-                onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
+                onChange={(e) => { setFilterCategory(e.target.value); setPage(1); setRefreshKey(k => k + 1); }}
               >
                 <option value="">All Categories</option>
                 <option value="water">Water</option>
@@ -236,7 +239,7 @@ export default function AdminDashboard() {
               <select
                 className="input-field"
                 value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+                onChange={(e) => { setFilterStatus(e.target.value); setPage(1); setRefreshKey(k => k + 1); }}
               >
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
