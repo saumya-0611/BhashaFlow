@@ -8,7 +8,7 @@ Provides Speech-to-Text (Sarvam saaras:v3) and Text-to-Speech
 import base64
 import logging
 from typing import Optional
-
+import mimetypes
 import requests
 
 from .config import (
@@ -39,32 +39,21 @@ def speech_to_text(
 ) -> dict:
     """
     Transcribe audio to text using Sarvam AI STT.
-
-    Args:
-        audio_bytes:    Raw bytes of the audio file.
-        filename:       Original filename (used for MIME type detection).
-        language_code:  BCP-47 code (e.g. 'hi-IN') or 'unknown' for auto-detect.
-        mode:           'transcribe' | 'translate' | 'verbatim' | 'translit' | 'codemix'
-        model:          STT model name.
-
-    Returns:
-        {
-            "transcript": "transcribed text",
-            "language_code": "hi-IN",
-            "language_probability": 0.95
-        }
-
-    Raises:
-        RuntimeError: on any API / network error.
     """
-    # STT uses multipart/form-data, so we only set the API key header
     headers = {
         "api-subscription-key": SARVAM_API_KEY,
     }
 
-    # Build multipart form
+    # FIX: Explicitly guess the MIME type based on the filename.
+    # If the filename has no extension (common with browser blobs), 
+    # default to 'audio/webm' as used in your frontend recording logic.
+    content_type, _ = mimetypes.guess_type(filename)
+    if not content_type:
+        content_type = "audio/webm" 
+
+    # Build multipart form - adding the content_type as the third element in the tuple
     files = {
-        "file": (filename, audio_bytes),
+        "file": (filename, audio_bytes, content_type),
     }
 
     data = {
@@ -72,13 +61,12 @@ def speech_to_text(
         "language_code": language_code,
     }
 
-    # 'mode' is only applicable for saaras:v3
     if model == "saaras:v3":
         data["mode"] = mode
 
     logger.info(
-        "STT request: model=%s, mode=%s, lang=%s, file=%s (%d bytes)",
-        model, mode, language_code, filename, len(audio_bytes),
+        "STT request: model=%s, mode=%s, lang=%s, file=%s, type=%s (%d bytes)",
+        model, mode, language_code, filename, content_type, len(audio_bytes),
     )
 
     try:
@@ -110,7 +98,6 @@ def speech_to_text(
         )
     except Exception as e:
         raise RuntimeError(f"Speech-to-text failed: {e}") from e
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  TEXT-TO-SPEECH (TTS)

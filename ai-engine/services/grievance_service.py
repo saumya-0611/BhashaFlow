@@ -15,7 +15,7 @@ from typing import Optional
 from fastapi import File, Form, HTTPException, UploadFile
 
 from .config import DEFAULT_OCR_LANGUAGES
-from .gemini_service import analyze_with_gemini
+from .gemini_service import analyze_with_gemini, analyze_with_gemini_fix_ocr, identify_scripts_with_gemini
 from .ocr_service import extract_text_from_image
 from .speech_service import speech_to_text
 from .translate_service import get_language_name, translate_text
@@ -74,13 +74,23 @@ async def process_grievance_full(
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Empty image file.")
 
-        logger.info("OCR: extracting text from image '%s' (%d bytes)", image.filename, len(image_bytes))
-        ocr_result = extract_text_from_image(image_bytes, DEFAULT_OCR_LANGUAGES)
-        extracted_text = ocr_result["extracted_text"]
-        ocr_raw_text = extracted_text
-        detected_language = source_language_code  # OCR does not auto-detect language
+        logger.info("OCR: Processing image '%s' (%d bytes)", image.filename, len(image_bytes))
+        
+        # Step A: Identify scripts via Gemini Vision
+        identified_langs = identify_scripts_with_gemini(image_bytes)
+        logger.info(f"Gemini identified scripts: {identified_langs}")
+
+        # Step B: Run OCR with dynamic scripts
+        ocr_result = extract_text_from_image(image_bytes, identified_langs)
+        raw_ocr_text = ocr_result["extracted_text"]
+
+        # Step C: Dual Validation (Gemini fixes the raw text)
+        extracted_text = analyze_with_gemini_fix_ocr(raw_ocr_text, identified_langs)
+        
+        ocr_raw_text = raw_ocr_text  # Keep raw text for audit
+        detected_language = identified_langs[0] if identified_langs else "auto"
         input_type = "image"
-        logger.info("OCR done: chars=%d", len(extracted_text))
+        logger.info("OCR & Dual Validation done: chars=%d", len(extracted_text))
 
     elif text and text.strip():
         extracted_text = text.strip()
