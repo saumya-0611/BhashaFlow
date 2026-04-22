@@ -18,7 +18,7 @@ SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 # ═══════════════════════════════════════════════════════════════════
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
 SARVAM_HEADERS = {
     "api-subscription-key": SARVAM_API_KEY,
