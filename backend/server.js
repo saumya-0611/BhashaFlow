@@ -24,8 +24,9 @@ const PORT = process.env.PORT || 5000;
 // Allow the React dev server and any future deployed frontend origin.
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000',
+    process.env.FRONTEND_URL, 
     'http://localhost:3000',
+    'https://bhasha-flow.vercel.app' // Add your live Vercel URL here!
   ],
   credentials: true,
 }));
