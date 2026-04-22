@@ -12,12 +12,17 @@ import { useState, useEffect } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
+import { useGrievanceFlow } from '../context/GrievanceFlowContext';
 import api from '../utils/api';
 import './AIAnalysis.css';
 
 export default function AIAnalysis() {
   const { id }    = useParams();
   const location  = useLocation();
+  const { exitFlow } = useGrievanceFlow();
+
+  // Submission is complete — exit the guarded flow
+  useEffect(() => { exitFlow(); }, [exitFlow]);
 
   const [data, setData]       = useState(location.state || null);
   const [loading, setLoading] = useState(!location.state);

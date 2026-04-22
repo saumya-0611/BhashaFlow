@@ -180,6 +180,31 @@ router.post('/confirm', auth, async (req, res) => {
   }
 });
 
+// ─── PATCH /api/grievance/:id/details — auto-save partial form data ──
+router.patch('/:id/details', auth, async (req, res) => {
+  try {
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+    if (grievance.user_id.toString() !== req.user.userId)
+      return res.status(403).json({ message: 'Not authorized' });
+
+    const { user_name, user_phone, state, district, pincode, address, landmark } = req.body;
+    if (user_name !== undefined) grievance.user_name = user_name;
+    if (user_phone !== undefined) grievance.user_phone = user_phone;
+    if (state !== undefined) grievance.state = state;
+    if (district !== undefined) grievance.district = district;
+    if (pincode !== undefined) grievance.pincode = pincode;
+    if (address !== undefined) grievance.address = address;
+    if (landmark !== undefined) grievance.landmark = landmark;
+
+    await grievance.save();
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('❌ Details save error:', error.message);
+    res.status(500).json({ message: 'Failed to save details', error: error.message });
+  }
+});
+
 // ─── POST /api/grievance/submit ─────────────────────────────────
 router.post('/submit', auth, async (req, res) => {
   try {
@@ -291,6 +316,7 @@ router.get('/recent', auth, async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // ─── DELETE /api/grievance/:id ──────────────────────────────────
 // Deletes only incomplete grievances when user abandons flow.
 router.delete('/:id', auth, async (req, res) => {
@@ -315,15 +341,38 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete a submitted grievance' });
     }
 
+=======
+// ─── DELETE /api/grievance/:id — discard incomplete grievance ────
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+    if (grievance.user_id.toString() !== req.user.userId)
+      return res.status(403).json({ message: 'Not authorized' });
+
+    // Only allow deleting grievances that haven't been fully submitted
+    if (['open', 'in_progress', 'resolved', 'closed'].includes(grievance.status)) {
+      return res.status(400).json({ message: 'Cannot delete a submitted grievance' });
+    }
+
+    // Clean up related records
+>>>>>>> ba2214f (Updated submission portal, fixed errors)
     await AiAnalysis.deleteMany({ grievance_id: grievance._id });
     await StatusUpdate.deleteMany({ grievance_id: grievance._id });
     await TrainingData.deleteMany({ original_text: grievance.original_text });
     await grievance.deleteOne();
 
+<<<<<<< HEAD
     return res.status(200).json({ success: true, message: 'Grievance discarded' });
   } catch (error) {
     console.error('❌ Delete grievance error:', error.message);
     return res.status(500).json({ message: 'Failed to delete grievance', error: error.message });
+=======
+    res.status(200).json({ success: true, message: 'Grievance discarded' });
+  } catch (error) {
+    console.error('❌ Delete error:', error.message);
+    res.status(500).json({ message: 'Failed to delete grievance', error: error.message });
+>>>>>>> ba2214f (Updated submission portal, fixed errors)
   }
 });
 

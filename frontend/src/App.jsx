@@ -10,6 +10,7 @@ import Dashboard       from './pages/Dashboard';
 import SubmitGrievance from './pages/SubmitGrievance';
 import VerifyGrievance from './pages/VerifyGrievance';
 import GrievanceForm   from './pages/GrievanceForm';
+import ReviewGrievance from './pages/ReviewGrievance';
 import AIAnalysis      from './pages/AIAnalysis';
 import GrievanceDetail from './pages/GrievanceDetail';
 
@@ -44,7 +45,11 @@ function App() {
           <Route path="/grievance-form/:id"
             element={<ProtectedRoute><GrievanceForm /></ProtectedRoute>} />
 
-          {/* Step 4 — AI result, portals, procedure */}
+          {/* Step 4 — review all details */}
+          <Route path="/review/:id"
+            element={<ProtectedRoute><ReviewGrievance /></ProtectedRoute>} />
+
+          {/* Step 5 — AI result, portals, procedure */}
           <Route path="/ai-result/:id"
             element={<ProtectedRoute><AIAnalysis /></ProtectedRoute>} />
 

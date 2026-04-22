@@ -7,10 +7,12 @@
  * Added error handling UI for API failures.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
+import StepIndicator from '../components/StepIndicator';
+import NavigationGuard from '../components/NavigationGuard';
 import api from '../utils/api';
 import './GrievanceForm.css';
 
@@ -52,10 +54,15 @@ export default function GrievanceForm() {
   const [dataLoading, setDataLoading] = useState(!prevState);
   const [fetchError, setFetchError]   = useState('');
 
-  // ── Form state ────────────────────────────────────────────────
-  const [form, setForm] = useState({
-    user_name: '', user_phone: '', state: '',
-    district: '', pincode: '', address: '', landmark: '',
+  // ── Form state — initialize from prevState.form if coming back from Review ──
+  const [form, setForm] = useState(() => {
+    if (prevState?.form) {
+      return { ...prevState.form };
+    }
+    return {
+      user_name: '', user_phone: '', state: '',
+      district: '', pincode: '', address: '', landmark: '',
+    };
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -63,26 +70,62 @@ export default function GrievanceForm() {
 
   const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
-  // ── Fallback fetch if no state (refresh / direct URL) ─────────
+  // ── Auto-save form details to backend (debounced) ──────────────
+  const saveTimerRef = useRef(null);
   useEffect(() => {
-    if (prevState) return;
+    // Skip auto-save if form is completely empty
+    const hasAnyData = Object.values(form).some((v) => v && v.trim());
+    if (!hasAnyData) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      api.patch(`/api/grievance/${id}/details`, form).catch(() => {});
+    }, 1500); // save 1.5s after last keystroke
+
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [form, id]);
+
+  // ── Fallback fetch if no state (refresh / direct URL / dashboard return) ──
+  useEffect(() => {
+    if (prevState && !prevState.form) {
+      // Have AI data from previous step but no form yet — still try to fetch saved details
+    } else if (prevState?.form) {
+      return; // Already have form data from Review page edit
+    }
 
     const fetchData = async () => {
       try {
         const res = await api.get(`/api/grievance/${id}`);
         const { grievance, ai_analysis } = res.data;
-        setStepData({
-          grievance_id:     grievance._id,
-          english_summary:  ai_analysis?.english_summary || grievance.title || '',
-          category:         grievance.category || 'other',
-          priority:         grievance.priority || 'medium',
-          keywords:         ai_analysis?.keywords || [],
-          confidence_score: ai_analysis?.confidence_score,
-          detected_language: ai_analysis?.detected_language || grievance.original_language || 'en-IN',
-          verification_sentence: ai_analysis?.verification_sentence || '',
-        });
+
+        if (!prevState) {
+          setStepData({
+            grievance_id:     grievance._id,
+            english_summary:  ai_analysis?.english_summary || grievance.title || '',
+            category:         grievance.category || 'other',
+            priority:         grievance.priority || 'medium',
+            keywords:         ai_analysis?.keywords || [],
+            confidence_score: ai_analysis?.confidence_score,
+            detected_language: ai_analysis?.detected_language || grievance.original_language || 'en-IN',
+            verification_sentence: ai_analysis?.verification_sentence || '',
+            original_text:    grievance.original_text || '',
+          });
+        }
+
+        // Populate form with any previously saved details
+        setForm((prev) => ({
+          user_name:  grievance.user_name  || prev.user_name  || '',
+          user_phone: grievance.user_phone || prev.user_phone || '',
+          state:      grievance.state      || prev.state      || '',
+          district:   grievance.district   || prev.district   || '',
+          pincode:    grievance.pincode    || prev.pincode    || '',
+          address:    grievance.address    || prev.address    || '',
+          landmark:   grievance.landmark   || prev.landmark   || '',
+        }));
       } catch (err) {
-        setFetchError('Could not load grievance data. Please go back and resubmit.');
+        if (!prevState) {
+          setFetchError('Could not load grievance data. Please go back and resubmit.');
+        }
       } finally {
         setDataLoading(false);
       }
@@ -100,34 +143,13 @@ export default function GrievanceForm() {
       return;
     }
 
-    setSubmitting(true);
-    let msgIdx = 0;
-    setLoadingMsg(LOADING_MESSAGES[0]);
-    const msgInterval = setInterval(() => {
-      msgIdx = (msgIdx + 1) % LOADING_MESSAGES.length;
-      setLoadingMsg(LOADING_MESSAGES[msgIdx]);
-    }, 2500);
-
-    try {
-      const { data } = await api.post('/api/grievance/submit', {
-        grievance_id: id,
-        ...form,
-      });
-
-      clearInterval(msgInterval);
-
-      // Merge: stepData carries AI fields; data carries portal/offices/procedure
-      navigate(`/ai-result/${id}`, {
-        state: {
-          ...stepData,
-          ...data,
-        },
-      });
-    } catch (err) {
-      clearInterval(msgInterval);
-      setSubmitError(err.response?.data?.message || 'Submission failed. Please try again.');
-      setSubmitting(false);
-    }
+    // Navigate to review page — no API call yet
+    navigate(`/review/${id}`, {
+      state: {
+        ...stepData,
+        form,
+      },
+    });
   };
 
   // ── Loading state ─────────────────────────────────────────────
@@ -175,6 +197,7 @@ export default function GrievanceForm() {
 
   return (
     <DashboardLayout>
+      <NavigationGuard grievanceId={id} />
       <motion.div
         className="gform-page"
         variants={pageVariants}
@@ -184,16 +207,7 @@ export default function GrievanceForm() {
       >
         {/* Header */}
         <section className="gform-header">
-          <div className="gform-step-row">
-            <span className="gform-step-badge">Step 3 of 3</span>
-            <div className="gform-steps">
-              {['Describe', 'Verify', 'Details'].map((s, i) => (
-                <span key={s} className={`gform-step ${i === 2 ? 'active' : i < 2 ? 'done' : ''}`}>
-                  {s}
-                </span>
-              ))}
-            </div>
-          </div>
+          <StepIndicator currentStep={2} />
           <h1>Tell us where you are</h1>
           <p>Fill in your location so we can suggest the right offices and portals near you.</p>
 

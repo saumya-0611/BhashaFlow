@@ -106,13 +106,17 @@ This project uses a **microservices architecture**, fully containerized with Doc
 - **Styling:** Vanilla CSS with design tokens
 - **Key Pages:**
   - `CitizenAuth` — Login, Register, Google OAuth, Forgot Password
-  - `SubmitGrievance` — Text/Voice input + optional PDF proof
-  - `VerifyGrievance` — AI understanding confirmation
-  - `GrievanceForm` — Location and contact details
-  - `AIAnalysis` — AI results, portal links, procedure steps, helplines
+  - `SubmitGrievance` — Text/Voice input + optional PDF proof (Step 1)
+  - `VerifyGrievance` — AI understanding confirmation (Step 2)
+  - `GrievanceForm` — Location and contact details (Step 3)
+  - `ReviewGrievance` — Full summary review before final submission (Step 4)
+  - `AIAnalysis` — AI results, portal links, procedure steps, helplines (Step 5)
   - `Dashboard` — Citizen's grievance history and status tracking
   - `AdminDashboard` — Admin management interface
   - `ResetPassword` — Secure token-based password recovery
+- **Shared Components:**
+  - `StepIndicator` — Consistent 4-step progress bar (Describe → Verify → Details → Review) shown across all grievance flow pages
+  - `DashboardLayout` — Sidebar navigation wrapper
 
 ### 2. Backend API (Port `5000`)
 - **Framework:** Node.js + Express.js (Node 20)
@@ -149,23 +153,29 @@ This project uses a **microservices architecture**, fully containerized with Doc
 ## 🔄 Grievance Processing Flow
 
 ```
-Step 1: SUBMIT ─────────────────────────────────────────────────────────
-  Citizen types/speaks grievance → React sends to /api/grievance/ingest
-
-Step 2: AI INGEST ─────────────────────────────────────────────────────
-  Backend forwards input to AI Engine (port 8000)
-  AI Engine: Extract text → Translate to English → Gemini Analysis
+Step 1: DESCRIBE ───────────────────────────────────────────────────────
+  Citizen types or speaks their grievance + attaches optional PDF proof
+  React sends input to /api/grievance/ingest
+  Backend forwards to AI Engine → Extract text → Translate → Classify
   Returns: title, summary, category, priority, keywords, confidence
 
-Step 3: VERIFY ────────────────────────────────────────────────────────
+Step 2: VERIFY ────────────────────────────────────────────────────────
   Citizen sees AI's understanding in their own language
-  Confirms (Yes) or rejects (No → resubmit)
+  Confirms (Yes) or rejects (No → re-describe)
 
-Step 4: DETAILS ───────────────────────────────────────────────────────
-  Citizen fills location form (state, district, pincode, address)
-  Backend maps category + state → specific government portal(s)
+Step 3: DETAILS ───────────────────────────────────────────────────────
+  Citizen fills in personal & location details
+  (Name, phone, state, district, pincode, address, landmark)
+
+Step 4: REVIEW ────────────────────────────────────────────────────────
+  Citizen sees a full summary of everything entered:
+    → Original grievance text
+    → AI-detected category, priority, and keywords
+    → All personal & location details
+  Can go back to edit, or press "Confirm & Submit"
 
 Step 5: AI RESULT ─────────────────────────────────────────────────────
+  After confirmation, backend maps category + state → portals
   Citizen sees:
     → Exact government portal links to file complaint
     → Helpline numbers
@@ -174,6 +184,8 @@ Step 5: AI RESULT ────────────────────�
     → Nearby offices (with Google Maps links)
     → Option to download PDF summary
 ```
+
+> All 4 citizen-facing steps display a **shared step indicator** bar at the top showing progress through: Describe → Verify → Details → Review.
 
 ---
 
@@ -249,7 +261,15 @@ BhashaFlow/
 ├── frontend/                  # React + Vite frontend
 │   └── src/
 │       ├── pages/             # All page components
-│       ├── components/        # Shared components (DashboardLayout, etc.)
+│       │   ├── SubmitGrievance.jsx   # Step 1: Text/Voice + PDF
+│       │   ├── VerifyGrievance.jsx   # Step 2: AI confirmation
+│       │   ├── GrievanceForm.jsx     # Step 3: Location details
+│       │   ├── ReviewGrievance.jsx   # Step 4: Review & confirm
+│       │   ├── AIAnalysis.jsx        # Step 5: Portal results
+│       │   └── ...                   # Dashboard, Auth, Admin, etc.
+│       ├── components/        # Shared components
+│       │   ├── DashboardLayout.jsx   # Sidebar navigation wrapper
+│       │   └── StepIndicator.jsx     # 4-step progress bar
 │       └── utils/             # API client, auth guards
 ├── backend/                   # Node.js + Express backend
 │   ├── models/                # Mongoose schemas (User, Grievance, etc.)

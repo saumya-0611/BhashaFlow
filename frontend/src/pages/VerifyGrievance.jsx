@@ -11,6 +11,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
+import StepIndicator from '../components/StepIndicator';
+import NavigationGuard from '../components/NavigationGuard';
 import './VerifyGrievance.css';
 
 const pageVariants = {
@@ -33,6 +35,9 @@ export default function VerifyGrievance() {
   const [verifyData, setVerifyData] = useState(state || null);
   const [dataLoading, setDataLoading] = useState(!state);
   const [fetchError, setFetchError]   = useState('');
+
+  // Navigation guard — warns user if they try to leave the flow
+  const guardId = verifyData?.grievance_id || id;
 
   // ── Action state ──────────────────────────────────────────────
   const [loading, setLoading]   = useState(false);
@@ -154,6 +159,7 @@ export default function VerifyGrievance() {
       animate="animate"
       exit="exit"
     >
+      <NavigationGuard grievanceId={guardId} />
       {/* Brand header */}
       <motion.div
         className="verify-brand"
@@ -161,9 +167,7 @@ export default function VerifyGrievance() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.05 }}
       >
-        <span className="material-symbols-outlined filled" style={{ color: 'var(--saffron)', fontSize: 28 }}>language</span>
-        <span className="verify-brand-name">BhashaFlow</span>
-        <span className="verify-step-badge">Step 2 of 3</span>
+        <StepIndicator currentStep={1} />
       </motion.div>
 
       {/* Main card */}

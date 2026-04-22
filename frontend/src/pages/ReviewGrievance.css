@@ -1,0 +1,198 @@
+/* ═══════════════════════════════════════════════════════
+   REVIEW GRIEVANCE PAGE
+   ═══════════════════════════════════════════════════════ */
+
+.review-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding-bottom: var(--space-10);
+}
+
+.review-header {
+  margin-bottom: var(--space-8);
+}
+
+.review-header h1 {
+  font-family: var(--font-display);
+  font-size: var(--headline-md);
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: var(--space-2);
+}
+
+.review-header p {
+  font-size: var(--body-md);
+  color: var(--on-surface-variant);
+  line-height: 1.6;
+}
+
+/* Step indicator */
+.review-step-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.review-step-badge {
+  font-size: var(--label-sm);
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-fixed);
+  padding: 4px 12px;
+  border-radius: 16px;
+  white-space: nowrap;
+}
+
+.review-steps {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.review-step {
+  font-size: var(--label-sm);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  color: var(--outline);
+  background: var(--surface-container-low);
+  transition: all 0.2s;
+}
+
+.review-step.done {
+  color: var(--emerald);
+  background: rgba(163, 246, 156, 0.12);
+}
+
+.review-step.active {
+  color: white;
+  background: var(--primary);
+  font-weight: 700;
+}
+
+/* Content */
+.review-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Section cards */
+.review-section {
+  padding: var(--space-6);
+}
+
+.review-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.review-section-header h2 {
+  font-family: var(--font-display);
+  font-size: var(--title-md);
+  font-weight: 700;
+  color: var(--on-surface);
+  margin: 0;
+}
+
+/* Fields */
+.review-field {
+  margin-bottom: var(--space-3);
+}
+
+.review-label {
+  display: block;
+  font-size: var(--label-sm);
+  font-weight: 600;
+  color: var(--outline);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.review-value {
+  font-size: var(--body-md);
+  color: var(--on-surface);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.review-text-block {
+  background: var(--surface-container-low);
+  padding: var(--space-4);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Details grid */
+.review-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+/* Chips */
+.review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.review-keywords {
+  margin-top: var(--space-4);
+}
+
+.chip-outline {
+  background: transparent;
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface-variant);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: var(--label-sm);
+}
+
+/* Error */
+.review-error {
+  background: var(--error-container, #fdecea);
+  color: var(--error);
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+/* Action buttons */
+.review-actions {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: flex-end;
+  padding-top: var(--space-4);
+}
+
+.review-submit-btn {
+  padding: 14px 32px;
+  font-size: var(--body-md);
+  min-width: 220px;
+}
+
+@media (max-width: 640px) {
+  .review-details-grid {
+    grid-template-columns: 1fr;
+  }
+  .review-actions {
+    flex-direction: column;
+  }
+  .review-actions .btn {
+    width: 100%;
+  }
+}
