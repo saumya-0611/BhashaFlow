@@ -65,7 +65,7 @@ async function processIngest(req, res, inputType) {
     const aiResponse = await axios.post(
       `${AI_ENGINE_URL}/process-grievance-full`,
       formData,
-      { headers: formData.getHeaders(), timeout: 60000 }
+      { headers: formData.getHeaders(), timeout: 90000 }
     );
     const aiData = aiResponse.data;
 
