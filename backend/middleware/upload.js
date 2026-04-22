@@ -60,3 +60,14 @@ export const uploadAudio = multer({
   fileFilter: audioFilter,
   limits: { fileSize: MAX_SIZE }
 }).single('audio');
+
+export const uploadCombined = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    if (IMAGE_TYPES.includes(file.mimetype) || AUDIO_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Unsupported file type'), false);
+    }
+  }
+});

@@ -1,6 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-
 // Auth
 import CitizenAuth from './pages/CitizenAuth';
 import OAuthSuccess from './pages/OAuthSuccess';
@@ -20,15 +19,10 @@ import AdminDashboard from './pages/AdminDashboard';
 import { ProtectedRoute, AdminRoute } from './utils/auth';
 
 function App() {
+  const location = useLocation();
   return (
-    <Router>
-      {/*
-        AnimatePresence at the Router level enables exit animations
-        when navigating between pages. Each page component should use
-        motion.div with variants for entry/exit.
-      */}
       <AnimatePresence mode="wait">
-        <Routes>
+        <Routes location={location} key={location.pathname}>
           {/* ── Public ─────────────────────────────────────── */}
           <Route path="/auth"               element={<CitizenAuth />} />
           <Route path="/auth/oauth-success" element={<OAuthSuccess />} />
@@ -65,7 +59,6 @@ function App() {
           <Route path="*"  element={<Navigate to="/auth" replace />} />
         </Routes>
       </AnimatePresence>
-    </Router>
   );
 }
 

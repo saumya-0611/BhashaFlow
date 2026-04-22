@@ -1,9 +1,16 @@
 services:
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+        # FIX: inject VITE_BACKEND_URL so api.js uses it instead of hardcoded localhost
+        - VITE_BACKEND_URL=${VITE_BACKEND_URL}
     ports:
-      - "3000:3000"
+      - "3000:80"
+    depends_on:
+      - backend
 
   backend:
     build: ./backend
@@ -21,6 +28,11 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
+      # FIX: was missing — backend uses this to reach ai-engine container
+      - AI_ENGINE_URL=http://ai-engine:8000
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:5000}
+    depends_on:
+      - ai-engine
 
   ai-engine:
     build: ./ai-engine

@@ -55,6 +55,9 @@ export function startCronJobs() {
     } catch (error) {
       console.error('❌ [CRON] Follow-up job failed:', error.message);
     }
+  }, {
+    scheduled: true,
+    timezone: "Asia/Kolkata"
   });
 
   console.log('🕐 Cron jobs initialized — follow-up emails scheduled daily at 9:00 AM');

@@ -1,14 +1,11 @@
 /**
  * GrievanceForm.jsx
  * Route: /grievance-form/:id
- *
  * Step 3 of the citizen flow — collects location and contact details.
- * Fields accept any language; backend translates address to English.
- * On submit → /ai-result/:id
  */
 
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
 import api from '../utils/api';
@@ -20,7 +17,6 @@ const INDIAN_STATES = [
   'Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram',
   'Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana',
   'Tripura','Uttar Pradesh','Uttarakhand','West Bengal',
-  // Union Territories
   'Andaman & Nicobar Islands','Chandigarh','Dadra & Nagar Haveli and Daman & Diu',
   'Delhi','Jammu & Kashmir','Ladakh','Lakshadweep','Puducherry',
 ];
@@ -37,20 +33,22 @@ const fieldVariants = {
 };
 
 export default function GrievanceForm() {
-  const { id }    = useParams();
-  const navigate  = useNavigate();
+  const { id }           = useParams();
+  const navigate         = useNavigate();
+  // FIX: import useLocation and read prior state so we can forward it
+  const { state: prevState } = useLocation();
 
   const [form, setForm] = useState({
-    user_name: '',
+    user_name:  '',
     user_phone: '',
-    state: '',
-    district: '',
-    pincode: '',
-    address: '',
-    landmark: '',
+    state:      '',
+    district:   '',
+    pincode:    '',
+    address:    '',
+    landmark:   '',
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('');
+  const [submitting, setSubmitting]   = useState(false);
+  const [loadingMsg, setLoadingMsg]   = useState('');
 
   const set = (field) => (e) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -64,15 +62,12 @@ export default function GrievanceForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic validation
     if (!form.state || !form.district || !form.pincode || !form.address) {
       alert('Please fill in State, District, Pincode and Address.');
       return;
     }
 
     setSubmitting(true);
-
-    // Rotate loading messages while waiting
     let msgIdx = 0;
     setLoadingMsg(LOADING_MESSAGES[0]);
     const msgInterval = setInterval(() => {
@@ -81,14 +76,23 @@ export default function GrievanceForm() {
     }, 2500);
 
     try {
+      // FIX: destructure as { data } to match the variable used below
       const { data } = await api.post('/api/grievance/submit', {
         grievance_id: id,
         ...form,
       });
 
       clearInterval(msgInterval);
-      // Pass portal/office data to the result page via location state
-      navigate(`/ai-result/${id}`, { state: data });
+
+      // FIX: navigate with merged state — prevState from /verify, plus submit response
+      // AIAnalysis.jsx reads: english_summary, category, priority, portal_links,
+      // nearby_offices, procedure_steps — all now present
+      navigate(`/ai-result/${id}`, {
+        state: {
+          ...prevState,         // carries english_summary, category, priority from ingest
+          ...data,              // carries portal_links, nearby_offices, procedure_steps from submit
+        },
+      });
     } catch (err) {
       clearInterval(msgInterval);
       alert(err.response?.data?.message || 'Submission failed. Please try again.');
@@ -97,11 +101,11 @@ export default function GrievanceForm() {
   };
 
   const fields = [
-    { label: 'Your Full Name',   field: 'user_name',  type: 'text',  placeholder: 'Rajesh Kumar',      half: true,  custom: 0 },
-    { label: 'Phone Number',     field: 'user_phone', type: 'tel',   placeholder: '+91 98XXXXXXXX',    half: true,  custom: 1 },
-    { label: 'District',         field: 'district',   type: 'text',  placeholder: 'e.g. Gurugram',     half: true,  custom: 3 },
-    { label: 'Pincode',          field: 'pincode',    type: 'text',  placeholder: '122001',            half: true,  custom: 4 },
-    { label: 'Landmark (optional)', field: 'landmark', type: 'text', placeholder: 'Near BhashaFlow tower', half: false, custom: 6 },
+    { label: 'Your Full Name',      field: 'user_name',  type: 'text', placeholder: 'Rajesh Kumar',        half: true,  custom: 0 },
+    { label: 'Phone Number',        field: 'user_phone', type: 'tel',  placeholder: '+91 98XXXXXXXX',      half: true,  custom: 1 },
+    { label: 'District',            field: 'district',   type: 'text', placeholder: 'e.g. Gurugram',       half: true,  custom: 3 },
+    { label: 'Pincode',             field: 'pincode',    type: 'text', placeholder: '122001',              half: true,  custom: 4 },
+    { label: 'Landmark (optional)', field: 'landmark',   type: 'text', placeholder: 'Near city hall',      half: false, custom: 6 },
   ];
 
   return (
@@ -119,7 +123,9 @@ export default function GrievanceForm() {
             <span className="gform-step-badge">Step 3 of 3</span>
             <div className="gform-steps">
               {['Describe', 'Verify', 'Details'].map((s, i) => (
-                <span key={s} className={`gform-step ${i === 2 ? 'active' : i < 2 ? 'done' : ''}`}>{s}</span>
+                <span key={s} className={`gform-step ${i === 2 ? 'active' : i < 2 ? 'done' : ''}`}>
+                  {s}
+                </span>
               ))}
             </div>
           </div>
@@ -132,7 +138,7 @@ export default function GrievanceForm() {
             {/* Left column */}
             <div className="gform-main">
 
-              {/* State dropdown — separate so it gets its own motion */}
+              {/* State dropdown */}
               <motion.div className="field-group" custom={2} variants={fieldVariants} initial="initial" animate="animate">
                 <label className="input-label">State / Union Territory</label>
                 <select
@@ -148,7 +154,7 @@ export default function GrievanceForm() {
                 </select>
               </motion.div>
 
-              {/* Two-column sub-grid for half-width fields */}
+              {/* Half-width fields row */}
               <div className="gform-row">
                 {fields.filter(f => f.half).map((f) => (
                   <motion.div key={f.field} className="field-group" custom={f.custom} variants={fieldVariants} initial="initial" animate="animate">
@@ -224,7 +230,7 @@ export default function GrievanceForm() {
               </motion.button>
             </div>
 
-            {/* Right column — info card */}
+            {/* Right column */}
             <aside className="gform-aside">
               <motion.div
                 className="card surface-low gform-info"
@@ -254,7 +260,7 @@ export default function GrievanceForm() {
                   <span className="material-symbols-outlined filled" style={{ color: 'var(--saffron)', fontSize: 24 }}>shield</span>
                 </div>
                 <h3>Your data is safe</h3>
-                <p>Your personal details are encrypted and used only for grievance routing. We do not share them with third parties.</p>
+                <p>Your personal details are encrypted and used only for grievance routing.</p>
               </motion.div>
             </aside>
           </div>
