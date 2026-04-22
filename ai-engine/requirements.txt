@@ -6,16 +6,16 @@ python-dotenv==1.0.1
 requests==2.31.0
 
 # AI & OCR Core
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.0+cpu
+torchvision==0.17.0+cpu
 easyocr==1.7.1
-torch==2.2.0
-torchvision==0.17.0
 Pillow>=10.0.0
 numpy>=1.24.0
 
 # LLM & Processing
 langchain==0.1.9
 langchain-community==0.0.29
-pydantic==2.6.1
 transformers==4.37.2
 
 # Multilingual / Indic Support
