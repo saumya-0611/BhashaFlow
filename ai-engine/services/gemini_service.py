@@ -34,7 +34,15 @@ class GrievanceAnalysis(BaseModel):
     verification_sentence: str = Field(
         description="Short yes/no question in the citizen's language confirming the issue. Under 10 words."
     )
-    category: Literal["water", "roads", "electricity", "sanitation", "education", "healthcare", "other"]
+    category: Literal[
+        "cybercrime", "telecom_fraud", "human_rights", "corruption", 
+        "consumer_rights", "banking", "stock_market", "insurance", 
+        "telecom", "railways", "airlines", "road_transport", 
+        "real_estate", "sanitation", "food_safety", "medicines", 
+        "health_schemes", "environment", "aadhaar", "passport", 
+        "income_tax", "provident_fund", "pensions", "postal_services", 
+        "rti", "electricity_water", "national_general", "state_general", "other"
+    ]
     priority: Literal["low", "medium", "high", "critical"]
     keywords: list[str] = Field(description="3 to 5 key terms from the complaint")
     confidence_score: float = Field(ge=0.0, le=1.0, description="Confidence between 0.70 and 0.99")
@@ -152,6 +160,37 @@ Priority rules:
 - high: essential service disrupted 24+ hours
 - medium: service degraded but partially functional
 - low: minor inconvenience or maintenance request
+
+Categories Guide:
+- cybercrime: Online scam, hacking, phishing, financial cyber fraud
+- telecom_fraud: Stolen mobile, proxy SIM, fake caller ID, telecom fraud
+- human_rights: Police brutality, illegal detention, human rights violations
+- corruption: Bribery demands, corrupt government officials (Lokpal)
+- consumer_rights: Product quality issues, e-commerce disputes, misleading ads
+- banking: Bank branch issues, ATM failures, RBI complaints
+- stock_market: Trading issues, SEBI rules, mutual funds
+- insurance: Denied claims, fake policies, IRDAI
+- telecom: Network outage, broadbrand issues, DTH complaints (TRAI)
+- railways: Train delays, station cleanliness, IRCTC issues
+- airlines: Flight delays, lost baggage, airline complaints
+- road_transport: RTO, driving license, bus services, Parivahan
+- real_estate: Property disputes, builder delays, RERA
+- sanitation: Garbage dumping, street cleaning, local municipal issues
+- food_safety: Adulterated food, restaurant hygiene (FSSAI)
+- medicines: Fake drugs, pharmacy complaints (CDSCO)
+- health_schemes: Ayushman Bharat, govt hospital issues
+- environment: Pollution, noise, illegal logging, CPCB
+- aadhaar: UIDAI update issues, fingerprint mismatch
+- passport: Passport delays, police verification issues
+- income_tax: ITR refunds, PAN card issues
+- provident_fund: PF withdrawal delays, UAN issues (EPFO)
+- pensions: Pension stoppages, life certificate issues
+- postal_services: Missing parcels, India Post delays
+- rti: Right to Information appeals
+- electricity_water: Power cuts, high bills, lack of water supply
+- national_general: Central government policies, PMO, generic national
+- state_general: State CM issues, generic district administration
+- other: Any uncategorized issue
 
 For verification_sentence: write a short yes/no question in {detected_language} confirming the issue type.
 Example for hi-IN: 'kya yeh paani ki samasya hai?'"""
