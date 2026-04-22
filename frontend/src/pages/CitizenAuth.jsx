@@ -92,7 +92,7 @@ export default function CitizenAuth() {
     // The backend (passport) handles the full redirect chain.
     // After consent, Google sends the browser to /api/auth/google/callback,
     // which then redirects to /auth/oauth-success#token=...
-    window.location.href = 'http://localhost:5000/api/auth/google';
+    window.location.href = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/auth/google`w;
   };
 
   return (

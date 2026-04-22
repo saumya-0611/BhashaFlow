@@ -1,17 +1,14 @@
 /**
  * BhashaFlow — centralised Axios instance.
  *
- * Every API call in the app imports from here.
- * Automatically:
- *   - Sets the base URL to the backend
- *   - Attaches the JWT from localStorage on every request
- *   - Redirects to /auth on a 401 so stale tokens are handled globally
+ * FIX: baseURL now reads from VITE_BACKEND_URL (injected at build time by Vite/Docker).
+ * Falls back to localhost:5000 for local dev without a .env file.
  */
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000',
-  timeout: 60000, // 60s — AI processing can take up to ~15s
+  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000',
+  timeout: 60000,
 });
 
 // ── Request interceptor — attach token ──────────────────────────

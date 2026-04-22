@@ -4,7 +4,9 @@ import DashboardLayout from '../components/DashboardLayout';
 import api from '../utils/api';
 import './Dashboard.css';
 
+// FIX: use submitted_at (the actual Mongoose field name)
 const timeAgo = (date) => {
+  if (!date) return 'Unknown';
   const d = Math.floor((Date.now() - new Date(date)) / 86400000);
   return d === 0 ? 'Today' : d === 1 ? 'Yesterday' : `${d} days ago`;
 };
@@ -25,14 +27,19 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        const res = await api.get('/api/grievance/my');
+        // FIX: correct route is /recent, not /my
+        const res = await api.get('/api/grievance/recent');
         const data = res.data.grievances || [];
         setGrievances(data);
-        
+
         const total = data.length;
-        const inProgress = data.filter(g => g.status === 'in_progress' || g.status === 'open' || g.status === 'pending').length;
-        const resolved = data.filter(g => g.status === 'resolved' || g.status === 'closed').length;
-        
+        const inProgress = data.filter(g =>
+          g.status === 'in_progress' || g.status === 'open' || g.status === 'pending'
+        ).length;
+        const resolved = data.filter(g =>
+          g.status === 'resolved' || g.status === 'closed'
+        ).length;
+
         setStats({ total, inProgress, resolved });
       } catch (err) {
         console.error('Failed to fetch grievances', err);
@@ -45,9 +52,9 @@ export default function Dashboard() {
   }, [navigate]);
 
   const statCards = [
-    { label: 'Total Grievances', value: stats.total, icon: 'description', color: 'primary' },
-    { label: 'In Progress', value: stats.inProgress, icon: 'pending', color: 'secondary' },
-    { label: 'Resolved', value: stats.resolved, icon: 'check_circle', color: 'success' },
+    { label: 'Total Grievances', value: stats.total,      icon: 'description',  color: 'primary'   },
+    { label: 'In Progress',      value: stats.inProgress, icon: 'pending',      color: 'secondary' },
+    { label: 'Resolved',         value: stats.resolved,   icon: 'check_circle', color: 'success'   },
   ];
 
   return (
@@ -69,7 +76,11 @@ export default function Dashboard() {
       {/* Stat Cards */}
       <section className="dash-stats">
         {statCards.map(s => (
-          <div key={s.label} className={`stat-card card stat-${s.color} ${loading ? 'pulse' : ''}`} style={{ opacity: loading ? 0.5 : 1 }}>
+          <div
+            key={s.label}
+            className={`stat-card card stat-${s.color} ${loading ? 'pulse' : ''}`}
+            style={{ opacity: loading ? 0.5 : 1 }}
+          >
             <div className="stat-icon-wrap">
               <span className="material-symbols-outlined filled">{s.icon}</span>
             </div>
@@ -84,26 +95,43 @@ export default function Dashboard() {
         {/* Left: Recent Grievances */}
         <section className="dash-section">
           <div className="section-header">
-            <h2>Recent My Grievances</h2>
-            {!loading && grievances.length > 0 && <Link to="#" className="btn btn-tertiary">View All</Link>}
+            <h2>My Recent Grievances</h2>
+            {!loading && grievances.length > 0 && (
+              <Link to="#" className="btn btn-tertiary">View All</Link>
+            )}
           </div>
 
           <div className="grievance-list" style={{ opacity: loading ? 0.5 : 1 }}>
             {loading ? (
-              <div className="pulse" style={{ padding: '24px', background: 'var(--surface-container-low)', borderRadius: '12px' }}>Loading...</div>
+              <div className="pulse" style={{ padding: '24px', background: 'var(--surface-container-low)', borderRadius: '12px' }}>
+                Loading...
+              </div>
             ) : grievances.length === 0 ? (
               <div className="card surface-low" style={{ textAlign: 'center', padding: '40px' }}>
-                <p style={{ color: 'var(--on-surface-variant)', marginBottom: '16px' }}>You have not filed any grievances yet.</p>
+                <p style={{ color: 'var(--on-surface-variant)', marginBottom: '16px' }}>
+                  You have not filed any grievances yet.
+                </p>
                 <Link to="/submit" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                   Submit Now
+                  Submit Now
                 </Link>
               </div>
             ) : (
               grievances.map(g => (
-                <Link to={`/grievance/${g._id || g.grievance_id}`} key={g._id || g.grievance_id} className="grievance-card card">
+                <Link
+                  to={`/grievance/${g._id}`}
+                  key={g._id}
+                  className="grievance-card card"
+                >
                   <div className="grievance-card-top">
-                    <h3 className="grievance-title">{g.title || g.english_summary || 'Untitled Grievance'}</h3>
-                    <span className={`chip ${(g.status === 'resolved' || g.status === 'closed') ? 'chip-success' : 'chip-warning'}`}>
+                    {/* FIX: title is the actual Grievance field set by backend */}
+                    <h3 className="grievance-title">
+                      {g.title || g.original_text?.substring(0, 80) || 'Untitled Grievance'}
+                    </h3>
+                    <span className={`chip ${
+                      (g.status === 'resolved' || g.status === 'closed')
+                        ? 'chip-success'
+                        : 'chip-warning'
+                    }`}>
                       {g.status ? g.status.replace('_', ' ').toUpperCase() : 'PENDING'}
                     </span>
                   </div>
@@ -112,7 +140,8 @@ export default function Dashboard() {
                       <span className="material-symbols-outlined" style={{ fontSize: 16 }}>account_balance</span>
                       Category: {g.category || 'General'}
                     </span>
-                    <span className="grievance-date">{g.created_at ? timeAgo(g.created_at) : 'Unknown'}</span>
+                    {/* FIX: correct field is submitted_at */}
+                    <span className="grievance-date">{timeAgo(g.submitted_at)}</span>
                   </div>
                 </Link>
               ))
@@ -128,7 +157,8 @@ export default function Dashboard() {
               <h3>AI Powered Insights</h3>
             </div>
             <p>
-              Based on your history, the system is actively monitoring your reports. We estimate high priority tracking for civic anomalies.
+              Based on your history, the system is actively monitoring your reports.
+              We estimate high priority tracking for civic anomalies.
             </p>
           </div>
 

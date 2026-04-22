@@ -1,10 +1,10 @@
 """
 BhashaFlow AI Engine — Gemini Service
 
-Uses Google Gemini 2.0 Flash to:
-  - Extract category, priority, and keywords from English grievance text
-  - Generate a human-readable English summary for admins
-  - Generate a native-language verification sentence for the citizen
+FIX: google-genai >= 1.0 changed the client API.
+  - genai.Client() is correct for >= 0.8 and the new SDK
+  - response_mime_type="application/json" is supported in GenerateContentConfig
+  - Added better error handling and JSON extraction
 """
 
 import json
@@ -25,44 +25,56 @@ else:
     _client = None
     logger.warning("⚠️  GEMINI_API_KEY not set — analysis will use fallback values.")
 
-# ── Fallback response when Gemini is unavailable ──────────────────
+
 def _fallback(english_text: str) -> dict:
     return {
-        "title": english_text[:60].strip(),
-        "english_summary": english_text,
+        "title":                english_text[:60].strip(),
+        "english_summary":      english_text,
         "verification_sentence": "kya yeh sahi hai?",
-        "category": "other",
-        "priority": "medium",
-        "keywords": [],
-        "confidence_score": 0.5,
+        "category":             "other",
+        "priority":             "medium",
+        "keywords":             [],
+        "confidence_score":     0.5,
     }
+
+
+def _extract_json(raw: str) -> dict:
+    """
+    Robustly extract JSON from model output.
+    Handles: plain JSON, ```json ... ```, stray text before/after braces.
+    """
+    # Strip markdown fences
+    raw = re.sub(r"^```(?:json)?\s*", "", raw.strip())
+    raw = re.sub(r"\s*```$", "", raw).strip()
+
+    # FIX: if model still added preamble text, find the first { … } block
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if match:
+        raw = match.group(0)
+
+    return json.loads(raw)
 
 
 def analyze_with_gemini(english_text: str, detected_language: str) -> dict:
     """
-    Send the English translation of a grievance to Gemini 2.0 Flash
-    and receive structured analysis.
-
-    Args:
-        english_text:       English translation of the citizen's complaint.
-        detected_language:  BCP-47 code of the original language (e.g. 'hi-IN').
+    Send English grievance text to Gemini 2.0 Flash for structured analysis.
 
     Returns:
         {
-            "title":                 "8-word English title",
-            "english_summary":       "2-3 sentence admin summary",
-            "verification_sentence": "native-language Yes/No question for citizen",
-            "category":              one of water/roads/electricity/sanitation/education/healthcare/other,
-            "priority":              one of low/medium/high/critical,
-            "keywords":              ["list", "of", "key", "terms"],
-            "confidence_score":      0.0 to 1.0
+            "title":                  "8-word English title",
+            "english_summary":        "2-3 sentence admin summary",
+            "verification_sentence":  "native-language Yes/No question",
+            "category":               water|roads|electricity|sanitation|education|healthcare|other,
+            "priority":               low|medium|high|critical,
+            "keywords":               ["key", "terms"],
+            "confidence_score":       0.0 to 1.0
         }
     """
     if _client is None:
         logger.warning("Gemini not available — using fallback.")
         return _fallback(english_text)
 
-    prompt = f"""Analyze this citizen grievance (originally in {detected_language}):
+    prompt = f"""Analyze this citizen grievance (originally in language: {detected_language}):
 "{english_text}"
 
 Return a JSON object with EXACTLY these fields:
@@ -82,8 +94,8 @@ Priority rules:
 - medium: services degraded but partially functional
 - low: minor inconvenience or maintenance request
 
-For the confidence_score, assign a value between 0.70 and 0.99 reflecting how confidently
-you identified the category. Return only the JSON object, nothing else."""
+For confidence_score assign a float between 0.70 and 0.99.
+Return ONLY the JSON object. No markdown, no code fences, no extra text."""
 
     try:
         response = _client.models.generate_content(
@@ -92,34 +104,34 @@ you identified the category. Return only the JSON object, nothing else."""
             config=types.GenerateContentConfig(
                 system_instruction=(
                     "You are an AI assistant for BhashaFlow, an Indian government citizen grievance portal. "
-                    "You analyze citizen complaints and extract structured information. "
+                    "Analyze citizen complaints and extract structured information. "
                     "Always respond with ONLY a valid JSON object. "
                     "No markdown, no code fences, no explanations outside the JSON."
                 ),
+                # FIX: response_mime_type forces JSON output — reduces parse failures
                 response_mime_type="application/json",
+                temperature=0.2,  # low temperature for consistent structured output
             ),
         )
-        raw = response.text.strip()
 
-        # Strip markdown code fences if Gemini wraps in ```json ... ```
-        raw = re.sub(r"^```(?:json)?\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        raw = raw.strip()
+        raw = response.text.strip() if response.text else ""
+        if not raw:
+            logger.warning("Gemini returned empty response — using fallback.")
+            return _fallback(english_text)
 
-        data = json.loads(raw)
+        data = _extract_json(raw)
 
-        # Validate and sanitise required fields
         valid_categories = {"water", "roads", "electricity", "sanitation", "education", "healthcare", "other"}
-        valid_priorities = {"low", "medium", "high", "critical"}
+        valid_priorities  = {"low", "medium", "high", "critical"}
 
         return {
-            "title": str(data.get("title", english_text[:60])).strip(),
-            "english_summary": str(data.get("english_summary", english_text)).strip(),
+            "title":                str(data.get("title", english_text[:60])).strip(),
+            "english_summary":      str(data.get("english_summary", english_text)).strip(),
             "verification_sentence": str(data.get("verification_sentence", "kya yeh sahi hai?")).strip(),
-            "category": data.get("category", "other") if data.get("category") in valid_categories else "other",
-            "priority": data.get("priority", "medium") if data.get("priority") in valid_priorities else "medium",
-            "keywords": list(data.get("keywords", [])),
-            "confidence_score": float(data.get("confidence_score", 0.75)),
+            "category":             data.get("category", "other") if data.get("category") in valid_categories else "other",
+            "priority":             data.get("priority", "medium") if data.get("priority") in valid_priorities else "medium",
+            "keywords":             list(data.get("keywords", [])),
+            "confidence_score":     float(data.get("confidence_score", 0.75)),
         }
 
     except (json.JSONDecodeError, KeyError, TypeError) as parse_err:

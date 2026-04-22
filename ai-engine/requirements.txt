@@ -21,5 +21,9 @@ transformers==4.37.2
 # Multilingual / Indic Support
 indic-nlp-library==0.92
 
-# Gemini (Google AI Studio)
-google-genai>=0.8.0
+# FIX: pin google-genai to a stable version compatible with genai.Client() API
+# 0.8.x introduced Client(); >=1.0 is the new stable SDK — both work with our code
+google-genai==1.0.0
+
+# FIX: google-genai 1.x requires httpx for async transport
+httpx>=0.27.0

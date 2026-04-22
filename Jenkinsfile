@@ -17,12 +17,8 @@ pipeline {
         stage('Checkout') {
             steps { checkout scm }
         }
-        stage('Build Docker Images') {
-            steps {
-                sh 'docker-compose build'
-            }
-        }
-        stage('Test & Run') {
+        
+        stage('Prepare Environment') {
             steps {
                 sh '''
                 echo "MONGO_URI=${MONGO_URI}"                               > .env
@@ -33,10 +29,23 @@ pipeline {
                 echo "GMAIL_USER=${GMAIL_USER}"                            >> .env
                 echo "GMAIL_PASS=${GMAIL_PASS}"                            >> .env
                 echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"                >> .env
+                echo "VITE_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}"           >> .env
                 echo "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}"        >> .env
                 echo "TECH_LEAD_EMAIL=${TECH_LEAD_EMAIL}"                  >> .env
                 echo "FRONTEND_URL=http://localhost:3000"                  >> .env
+                echo "VITE_BACKEND_URL=http://localhost:5000"              >> .env
                 '''
+            }
+        }
+        
+        stage('Build Docker Images') {
+            steps {
+                sh 'docker-compose build'
+            }
+        }
+        
+        stage('Test & Run') {
+            steps {
                 sh 'docker-compose up -d'
             }
         }

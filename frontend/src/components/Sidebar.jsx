@@ -6,7 +6,6 @@ export default function Sidebar({ isAdmin = false }) {
 
   const citizenLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
-    { name: 'My Grievances', path: '/grievance/recent', icon: 'description' }, // For demo
     { name: 'Submit New', path: '/submit', icon: 'add_circle' },
     { name: 'AI Insights', path: '/ai-result/demo', icon: 'psychology' }, // For demo
   ];
