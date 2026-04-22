@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
+import StepIndicator from '../components/StepIndicator';
 import api from '../utils/api';
 import './SubmitGrievance.css';
 
@@ -120,8 +121,9 @@ export default function SubmitGrievance() {
       <div className="submit-page">
         {/* Header */}
         <section className="submit-header">
+          <StepIndicator currentStep={0} />
           <h1>Submit Your Grievance</h1>
-          <p>Choose how you want to describe your grievance. Our AI handles text, voice, and images securely.</p>
+          <p>Choose how you want to describe your grievance. Our AI handles text and voice securely.</p>
         </section>
 
         <form onSubmit={handleSubmit} className="submit-form">
