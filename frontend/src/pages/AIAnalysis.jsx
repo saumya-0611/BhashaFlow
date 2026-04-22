@@ -26,16 +26,15 @@ export default function AIAnalysis() {
   const data = location.state || {};
 
   const {
-    english_summary         = 'No summary generated yet.',
-    category                = 'General',
-    priority                = 'Normal',
-    // FIX: backend returns portal_links as a single object {portal_name, portal_url, helpline}
-    // Normalise to an array so the render loop works regardless
-    portal_links            = null,
-    nearby_offices          = [],
-    procedure_steps         = [],
-    expected_resolution_days,
-    confidence_score,
+    // Map these to match the MongoDB keys seen in your screenshots
+    english_summary = data.english_summary || 'No summary generated yet.',
+    category = data.llm_category || data.category || 'General',
+    priority = data.llm_priority || data.priority || 'Normal',
+    portal_links = data.portal_links || null,
+    nearby_offices = data.nearby_offices || [],
+    procedure_steps = data.procedure_steps || [],
+    expected_resolution_days = data.expected_resolution_days || 7,
+    confidence_score = data.confidence_score,
   } = data;
 
   // FIX: normalise portal_links → always an array for the render loop
@@ -201,11 +200,10 @@ export default function AIAnalysis() {
                   </span>
                   {office.lat && (
                     <a
-                      href={`https://maps.google.com/?q=${office.lat},${office.lng}`}
+                      href={`https://www.google.com/maps/search/?api=1&query=${office.lat},${office.lng}`}
                       target="_blank"
                       rel="noreferrer"
                       className="contact-value"
-                      style={{ fontSize: '13px' }}
                     >
                       View on Google Maps ↗
                     </a>
