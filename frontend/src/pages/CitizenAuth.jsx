@@ -1,21 +1,91 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import './CitizenAuth.css';
 
-// ── Animation variants ──────────────────────────────────────────
+/* ── Animation variants ──────────────────────────────────── */
 const pageVariants = {
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] } },
-  exit:    { opacity: 0, y: -16, transition: { duration: 0.25 } },
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
+  exit:    { opacity: 0, transition: { duration: 0.2 } },
+};
+
+const panelVariants = {
+  initial: { opacity: 0, x: -32 },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.6, ease: [0.4, 0, 0.2, 1], delay: 0.1 } },
 };
 
 const formVariants = {
-  enter: (dir) => ({ opacity: 0, x: dir === "login" ? -30 : 30 }),
-  show:  { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
-  exit:  (dir) => ({ opacity: 0, x: dir === "login" ? 30 : -30, transition: { duration: 0.25 } }),
+  enter: (dir) => ({ opacity: 0, x: dir === "login" ? -20 : 20, filter: 'blur(4px)' }),
+  show:  { opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.35, ease: [0.4, 0, 0.2, 1] } },
+  exit:  (dir) => ({ opacity: 0, x: dir === "login" ? 20 : -20, filter: 'blur(4px)', transition: { duration: 0.2 } }),
 };
+
+const staggerContainer = {
+  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.3 } },
+};
+
+const staggerItem = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
+};
+
+/* Language words cycling in the ticker */
+const LANG_WORDS = [
+  { word: 'आपकी आवाज़', lang: 'Hindi' },
+  { word: 'உங்கள் குரல்', lang: 'Tamil' },
+  { word: 'మీ గొంతు', lang: 'Telugu' },
+  { word: 'আপনার কণ্ঠ', lang: 'Bengali' },
+  { word: 'നിന്റെ ശബ്ദം', lang: 'Malayalam' },
+  { word: 'ನಿಮ್ಮ ಧ್ವನಿ', lang: 'Kannada' },
+  { word: 'तुमची आवाज', lang: 'Marathi' },
+];
+
+/* Ashoka Chakra SVG spokes */
+function AshokaChakreSVG() {
+  const spokes = Array.from({ length: 24 }, (_, i) => i);
+  return (
+    <svg viewBox="0 0 400 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="200" cy="200" r="190" stroke="white" strokeWidth="6" />
+      <circle cx="200" cy="200" r="28" stroke="white" strokeWidth="6" fill="none" />
+      {spokes.map(i => {
+        const angle = (i * 15 * Math.PI) / 180;
+        const x1 = 200 + 30 * Math.cos(angle);
+        const y1 = 200 + 30 * Math.sin(angle);
+        const x2 = 200 + 185 * Math.cos(angle);
+        const y2 = 200 + 185 * Math.sin(angle);
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="white" strokeWidth="2.5" />;
+      })}
+      <circle cx="200" cy="200" r="140" stroke="white" strokeWidth="2" strokeDasharray="8 6" />
+    </svg>
+  );
+}
+
+/* Google SVG Icon */
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
+      <path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+    </svg>
+  );
+}
+
+/* Tab slider component */
+function TabSlider({ mode }) {
+  const tabs = ['login', 'signup'];
+  const idx = tabs.indexOf(mode);
+  return (
+    <motion.div
+      className="auth-tab-slider"
+      animate={{ left: `calc(${idx * 50}% + 4px)`, width: 'calc(50% - 8px)' }}
+      transition={{ type: 'spring', stiffness: 400, damping: 38 }}
+    />
+  );
+}
 
 export default function CitizenAuth() {
   const [mode, setMode]     = useState("login");
@@ -35,14 +105,12 @@ export default function CitizenAuth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Show error if Google OAuth failed (redirected with ?error=oauth_failed)
   useEffect(() => {
     if (searchParams.get('error') === 'oauth_failed') {
       setOauthError('Google sign-in failed. Please try again or use email/password.');
     }
   }, [searchParams]);
 
-  // ── Helpers ────────────────────────────────────────────────────
   const saveSession = (data) => {
     localStorage.setItem('token',    data.token);
     localStorage.setItem('userName', data.user.name);
@@ -50,14 +118,10 @@ export default function CitizenAuth() {
   };
 
   const redirectByRole = (role) => {
-    if (role === 'authority' || role === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
-    }
+    if (role === 'authority' || role === 'admin') navigate('/admin');
+    else navigate('/dashboard');
   };
 
-  // ── Login ──────────────────────────────────────────────────────
   const onLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -72,7 +136,6 @@ export default function CitizenAuth() {
     }
   };
 
-  // ── Forgot ──────────────────────────────────────────────────────
   const onForgot = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -87,7 +150,6 @@ export default function CitizenAuth() {
     }
   };
 
-  // ── Register ───────────────────────────────────────────────────
   const onSignup = async (e) => {
     e.preventDefault();
     if (sPass !== sConf) { alert("Passwords don't match"); return; }
@@ -103,82 +165,117 @@ export default function CitizenAuth() {
     }
   };
 
-  // ── Google OAuth — just redirect the browser to the backend ───
   const onGoogleLogin = () => {
-    // The backend (passport) handles the full redirect chain.
-    // After consent, Google sends the browser to /api/auth/google/callback,
-    // which then redirects to /auth/oauth-success#token=...
     window.location.href = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/auth/google`;
   };
 
   return (
     <motion.div className="auth-page" variants={pageVariants} initial="initial" animate="animate">
-      {/* ── Left Panel — Branding ─────────────────────────────── */}
-      <div className="auth-left">
+
+      {/* ── Left Panel ── */}
+      <motion.div className="auth-left" variants={panelVariants} initial="initial" animate="animate">
+        {/* Rotating Ashoka Chakra watermark */}
+        <div className="auth-chakra-wrap">
+          <AshokaChakreSVG />
+        </div>
+
         <div className="auth-left-content">
+          {/* Brand */}
           <motion.div
             className="auth-logo-area"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15, duration: 0.5 }}
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
           >
             <div className="auth-logo-badge">
               <span className="material-symbols-outlined filled">language</span>
             </div>
-            <h1 className="auth-logo-text">BhashaFlow</h1>
+            <h1 className="auth-logo-text">Bhasha<span>Flow</span></h1>
           </motion.div>
 
+          {/* Language ticker */}
           <motion.div
+            className="auth-lang-ticker"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
+            transition={{ delay: 0.35 }}
           >
-            <p className="auth-tagline">Digital Sovereignty for every citizen.</p>
+            <span className="auth-lang-ticker-label">Your voice in</span>
+            <div className="auth-lang-ticker-track">
+              <div className="auth-lang-ticker-inner">
+                {[...LANG_WORDS, LANG_WORDS[0]].map((l, i) => (
+                  <div key={i} className="auth-lang-word">{l.word}</div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Tagline */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          >
+            <p className="auth-tagline">
+              Digital sovereignty<br />
+              for <em>every</em> citizen.
+            </p>
             <p className="auth-subtitle">
-              Empowering voices through seamless communication and institutional transparency.
+              File grievances in 22+ Indian languages. Our AI routes, translates, and tracks your civic concerns to the right authorities.
             </p>
           </motion.div>
 
+          {/* Features */}
           <motion.div
             className="auth-features"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.5 }}
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
           >
             {[
-              { icon: 'translate',     title: '22+ Languages',          desc: 'File grievances in your native tongue' },
-              { icon: 'psychology',    title: 'AI-Powered Routing',     desc: 'Smart categorization & department mapping' },
-              { icon: 'verified_user', title: 'Government Certified',   desc: 'Secure, NIC-compliant infrastructure' },
+              { icon: 'translate',     title: '22+ Languages',        desc: 'Hindi, Tamil, Telugu, Bengali & more' },
+              { icon: 'psychology',    title: 'AI-Powered Routing',   desc: 'Smart categorization & department mapping' },
+              { icon: 'verified_user', title: 'Govt. Certified',      desc: 'NIC-compliant secure infrastructure' },
             ].map((f) => (
-              <div key={f.title} className="auth-feature">
-                <span className="material-symbols-outlined">{f.icon}</span>
-                <div>
-                  <strong>{f.title}</strong>
-                  <p>{f.desc}</p>
+              <motion.div key={f.title} className="auth-feature" variants={staggerItem}>
+                <div className="auth-feature-dot">
+                  <span className="material-symbols-outlined">{f.icon}</span>
                 </div>
-              </div>
+                <p className="auth-feature-text">
+                  <strong>{f.title}</strong>
+                  {f.desc}
+                </p>
+              </motion.div>
             ))}
           </motion.div>
 
-          <div className="tricolor-bar">
+          {/* Tricolor */}
+          <motion.div
+            className="tricolor-bar"
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            transition={{ delay: 0.9, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+            style={{ originX: 0 }}
+          >
             <div className="bar saffron" />
             <div className="bar white" />
             <div className="bar green" />
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* ── Right Panel — Form ────────────────────────────────── */}
+      {/* ── Right Panel ── */}
       <div className="auth-right">
         <motion.div
           className="auth-form-container"
-          initial={{ opacity: 0, scale: 0.97 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
         >
           {/* Tab Switcher */}
           {mode !== "forgot" && (
-            <div className="auth-tabs">
+            <div className="auth-tabs" style={{ position: 'relative' }}>
+              <TabSlider mode={mode} />
               {[["login", "Sign In"], ["signup", "Create Account"]].map(([m, label]) => (
                 <button
                   key={m}
@@ -186,30 +283,21 @@ export default function CitizenAuth() {
                   onClick={() => setMode(m)}
                 >
                   {label}
-                  {mode === m && (
-                    <motion.div layoutId="authTab" className="tab-indicator"
-                      transition={{ type: "spring", stiffness: 500, damping: 38 }} />
-                  )}
                 </button>
               ))}
             </div>
           )}
 
-          {/* OAuth error banner */}
+          {/* OAuth error */}
           <AnimatePresence>
             {oauthError && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                style={{
-                  background: 'var(--error-container)',
-                  color: 'var(--on-error-container)',
-                  padding: '10px 16px',
-                  fontSize: 'var(--body-sm)',
-                  borderBottom: '1px solid var(--outline-variant)',
-                }}
+                className="oauth-error-banner"
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 16 }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               >
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>error</span>
                 {oauthError}
               </motion.div>
             )}
@@ -229,11 +317,10 @@ export default function CitizenAuth() {
                 className="auth-form"
               >
                 <div className="form-header">
-                  <h2>Welcome Back</h2>
-                  <p>Access your grievance dashboard and insights.</p>
+                  <h2>Welcome back</h2>
+                  <p>Access your grievance dashboard and track your civic concerns.</p>
                 </div>
 
-                {/* Google Sign-In Button */}
                 <motion.button
                   type="button"
                   onClick={onGoogleLogin}
@@ -245,9 +332,7 @@ export default function CitizenAuth() {
                   Continue with Google
                 </motion.button>
 
-                <div className="auth-divider">
-                  <span>or sign in with email</span>
-                </div>
+                <div className="auth-divider"><span>or sign in with email</span></div>
 
                 <div className="field-group">
                   <label htmlFor="le" className="input-label">Email Address</label>
@@ -255,7 +340,7 @@ export default function CitizenAuth() {
                     <span className="material-symbols-outlined input-icon">mail</span>
                     <input id="le" type="email" className="input-field has-icon"
                       value={lEmail} onChange={e => setLEmail(e.target.value)}
-                      placeholder="citizen@example.gov.in" required />
+                      placeholder="citizen@gov.in" required />
                   </div>
                 </div>
 
@@ -273,20 +358,27 @@ export default function CitizenAuth() {
                 </div>
 
                 <div className="forgot-row">
-                  <button type="button" className="forgot-btn" onClick={() => setMode("forgot")} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>
+                  <button type="button" className="forgot-btn" onClick={() => setMode("forgot")}>
                     Forgot Password?
                   </button>
                 </div>
 
                 <motion.button
                   type="submit"
-                  className="btn btn-primary auth-submit"
+                  className="auth-submit"
                   disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.02 }}
                   whileTap={{ scale: loading ? 1 : 0.98 }}
                 >
                   {loading ? 'Signing in…' : 'Sign In'}
-                  <span className="material-symbols-outlined">arrow_forward</span>
+                  {!loading && <span className="material-symbols-outlined">arrow_forward</span>}
+                  {loading && (
+                    <motion.span
+                      style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }}
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+                    />
+                  )}
                 </motion.button>
 
                 <p className="auth-switch">
@@ -298,7 +390,6 @@ export default function CitizenAuth() {
             ) : mode === "forgot" ? (
               <motion.form
                 key="forgot"
-                custom="forgot"
                 variants={formVariants}
                 initial="enter"
                 animate="show"
@@ -307,8 +398,8 @@ export default function CitizenAuth() {
                 className="auth-form"
               >
                 <div className="form-header">
-                  <h2>Reset Password</h2>
-                  <p>Enter your email to receive a password reset link.</p>
+                  <h2>Reset password</h2>
+                  <p>Enter your email to receive a secure reset link.</p>
                 </div>
 
                 <div className="field-group">
@@ -317,13 +408,13 @@ export default function CitizenAuth() {
                     <span className="material-symbols-outlined input-icon">mail</span>
                     <input id="fe" type="email" className="input-field has-icon"
                       value={fEmail} onChange={e => setFEmail(e.target.value)}
-                      placeholder="citizen@example.gov.in" required />
+                      placeholder="citizen@gov.in" required />
                   </div>
                 </div>
 
                 <motion.button
                   type="submit"
-                  className="btn btn-primary auth-submit"
+                  className="auth-submit"
                   disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.02 }}
                   whileTap={{ scale: loading ? 1 : 0.98 }}
@@ -334,9 +425,10 @@ export default function CitizenAuth() {
 
                 <p className="auth-switch">
                   Remember your password?{" "}
-                  <button type="button" onClick={() => setMode("login")}>Back to login</button>
+                  <button type="button" onClick={() => setMode("login")}>Back to Sign In</button>
                 </p>
               </motion.form>
+
             ) : (
               <motion.form
                 key="signup"
@@ -353,7 +445,6 @@ export default function CitizenAuth() {
                   <p>Register to raise issues in your native language.</p>
                 </div>
 
-                {/* Google Sign-Up Button */}
                 <motion.button
                   type="button"
                   onClick={onGoogleLogin}
@@ -365,9 +456,7 @@ export default function CitizenAuth() {
                   Sign up with Google
                 </motion.button>
 
-                <div className="auth-divider">
-                  <span>or create account with email</span>
-                </div>
+                <div className="auth-divider"><span>or create account with email</span></div>
 
                 <div className="field-group">
                   <label htmlFor="sn" className="input-label">Full Name</label>
@@ -385,45 +474,54 @@ export default function CitizenAuth() {
                     <span className="material-symbols-outlined input-icon">mail</span>
                     <input id="se" type="email" className="input-field has-icon"
                       value={sEmail} onChange={e => setSEmail(e.target.value)}
-                      placeholder="citizen@example.gov.in" required />
+                      placeholder="citizen@gov.in" required />
                   </div>
                 </div>
 
-                <div className="field-group">
-                  <label htmlFor="sp" className="input-label">Password</label>
-                  <div className="input-wrapper">
-                    <span className="material-symbols-outlined input-icon">lock</span>
-                    <input id="sp" type={showP ? "text" : "password"} className="input-field has-icon"
-                      value={sPass} onChange={e => setSPass(e.target.value)}
-                      placeholder="Min. 8 characters" required minLength={8} />
-                    <button type="button" className="toggle-eye" onClick={() => setShowP(v => !v)}>
-                      <span className="material-symbols-outlined">{showP ? 'visibility_off' : 'visibility'}</span>
-                    </button>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="field-group">
+                    <label htmlFor="sp" className="input-label">Password</label>
+                    <div className="input-wrapper">
+                      <span className="material-symbols-outlined input-icon">lock</span>
+                      <input id="sp" type={showP ? "text" : "password"} className="input-field has-icon"
+                        value={sPass} onChange={e => setSPass(e.target.value)}
+                        placeholder="Min. 8 chars" required minLength={8} />
+                      <button type="button" className="toggle-eye" onClick={() => setShowP(v => !v)}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{showP ? 'visibility_off' : 'visibility'}</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div className="field-group">
-                  <label htmlFor="sc" className="input-label">Confirm Password</label>
-                  <div className="input-wrapper">
-                    <span className="material-symbols-outlined input-icon">verified_user</span>
-                    <input id="sc" type={showC ? "text" : "password"} className="input-field has-icon"
-                      value={sConf} onChange={e => setSConf(e.target.value)}
-                      placeholder="Re-enter password" required />
-                    <button type="button" className="toggle-eye" onClick={() => setShowC(v => !v)}>
-                      <span className="material-symbols-outlined">{showC ? 'visibility_off' : 'visibility'}</span>
-                    </button>
+                  <div className="field-group">
+                    <label htmlFor="sc" className="input-label">Confirm</label>
+                    <div className="input-wrapper">
+                      <span className="material-symbols-outlined input-icon">verified_user</span>
+                      <input id="sc" type={showC ? "text" : "password"} className="input-field has-icon"
+                        value={sConf} onChange={e => setSConf(e.target.value)}
+                        placeholder="Re-enter" required />
+                      <button type="button" className="toggle-eye" onClick={() => setShowC(v => !v)}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{showC ? 'visibility_off' : 'visibility'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 <motion.button
                   type="submit"
-                  className="btn btn-primary auth-submit"
+                  className="auth-submit"
                   disabled={loading}
                   whileHover={{ scale: loading ? 1 : 1.02 }}
                   whileTap={{ scale: loading ? 1 : 0.98 }}
                 >
                   {loading ? 'Creating…' : 'Create Account'}
-                  <span className="material-symbols-outlined">arrow_forward</span>
+                  {!loading && <span className="material-symbols-outlined">arrow_forward</span>}
+                  {loading && (
+                    <motion.span
+                      style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }}
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+                    />
+                  )}
                 </motion.button>
 
                 <p className="auth-switch">
@@ -439,21 +537,9 @@ export default function CitizenAuth() {
           <a href="#">Privacy Policy</a>
           <a href="#">Terms of Service</a>
           <a href="#">Contact Support</a>
-          <p>© 2024 BhashaFlow. An Initiative for Multilingual Civic Engagement.</p>
+          <p>© 2025 BhashaFlow — A Multilingual Civic Engagement Initiative.</p>
         </div>
       </div>
     </motion.div>
-  );
-}
-
-// ── Google "G" icon as inline SVG (no external dep) ────────────
-function GoogleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
-      <path d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-    </svg>
   );
 }

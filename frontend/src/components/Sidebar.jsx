@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGrievanceFlow } from '../context/GrievanceFlowContext';
 import LeaveFlowModal from './LeaveFlowModal';
 import api from '../utils/api';
@@ -10,20 +11,21 @@ export default function Sidebar({ isAdmin = false }) {
   const navigate = useNavigate();
   const { isInFlow, activeGrievanceId, exitFlow } = useGrievanceFlow();
 
-  const [showModal, setShowModal] = useState(false);
+  const [showModal, setShowModal]   = useState(false);
   const [pendingPath, setPendingPath] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting]     = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Check if a path is part of the grievance flow
-  const isFlowPath = (path) => {
-    return path.startsWith('/verify/') ||
-           path.startsWith('/grievance-form/') ||
-           path.startsWith('/review/') ||
-           path === '/submit';
-  };
+  const isFlowPath = (path) =>
+    path.startsWith('/verify/') ||
+    path.startsWith('/grievance-form/') ||
+    path.startsWith('/review/') ||
+    path === '/submit';
+
+  const closeMobile = () => setMobileOpen(false);
 
   const handleNavClick = (e, path) => {
-    // If we are in a flow and clicking to a non-flow destination, intercept
+    closeMobile();
     if (isInFlow && !isFlowPath(path)) {
       e.preventDefault();
       setPendingPath(path);
@@ -31,20 +33,13 @@ export default function Sidebar({ isAdmin = false }) {
     }
   };
 
-  const handleStay = () => {
-    setShowModal(false);
-    setPendingPath(null);
-  };
+  const handleStay = () => { setShowModal(false); setPendingPath(null); };
 
   const handleLeave = async () => {
     setDeleting(true);
     try {
-      if (activeGrievanceId) {
-        await api.delete(`/api/grievance/${activeGrievanceId}`);
-      }
-    } catch {
-      // Best effort — proceed even if delete fails
-    }
+      if (activeGrievanceId) await api.delete(`/api/grievance/${activeGrievanceId}`);
+    } catch { /* best effort */ }
     exitFlow();
     setDeleting(false);
     setShowModal(false);
@@ -53,11 +48,8 @@ export default function Sidebar({ isAdmin = false }) {
   };
 
   const handleLogout = () => {
-    if (isInFlow) {
-      setPendingPath('__logout__');
-      setShowModal(true);
-      return;
-    }
+    closeMobile();
+    if (isInFlow) { setPendingPath('__logout__'); setShowModal(true); return; }
     doLogout();
   };
 
@@ -71,9 +63,7 @@ export default function Sidebar({ isAdmin = false }) {
   const handleLeaveLogout = async () => {
     setDeleting(true);
     try {
-      if (activeGrievanceId) {
-        await api.delete(`/api/grievance/${activeGrievanceId}`);
-      }
+      if (activeGrievanceId) await api.delete(`/api/grievance/${activeGrievanceId}`);
     } catch { /* best effort */ }
     exitFlow();
     setDeleting(false);
@@ -84,14 +74,12 @@ export default function Sidebar({ isAdmin = false }) {
   const citizenLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
     { name: 'Submit New', path: '/submit',    icon: 'add_circle' },
-    // FIX: removed /ai-result/demo — that route requires a real grievance ID
-    // AI Insights are accessible via Dashboard → grievance card → detail
   ];
 
   const adminLinks = [
-    { name: 'Overview',        path: '/admin',             icon: 'dashboard'    },
-    { name: 'All Grievances',  path: '/admin/grievances',  icon: 'description'  },
-    { name: 'AI Insights',     path: '/admin/ai-insights', icon: 'psychology'   },
+    { name: 'Overview',       path: '/admin',             icon: 'dashboard'   },
+    { name: 'All Grievances', path: '/admin/grievances',  icon: 'description' },
+    { name: 'AI Insights',    path: '/admin/ai-insights', icon: 'psychology'  },
   ];
 
   const commonLinks = [
@@ -100,27 +88,49 @@ export default function Sidebar({ isAdmin = false }) {
   ];
 
   const links = isAdmin ? adminLinks : citizenLinks;
+  const userName = localStorage.getItem('userName') || 'Citizen';
 
-  return (
+  const SidebarContent = () => (
     <>
-      <aside className="sidebar surface-highest">
-        {/* Brand */}
-        <div className="sidebar-brand">
+      {/* Brand */}
+      <div className="sidebar-brand surface-highest">
+        <div className="sidebar-brand-icon">
+          <span className="material-symbols-outlined filled">language</span>
+        </div>
+        <div className="sidebar-brand-text">
           <h2>BhashaFlow</h2>
           <span className="subtitle">{isAdmin ? 'Admin Portal' : 'Citizen Portal'}</span>
         </div>
+        {/* Mobile close button */}
+        <button
+          onClick={closeMobile}
+          style={{
+            marginLeft: 'auto', background: 'none', border: 'none',
+            cursor: 'pointer', color: 'var(--outline)',
+            display: 'none', padding: 4
+          }}
+          className="sidebar-close-btn"
+        >
+          <span className="material-symbols-outlined">close</span>
+        </button>
+      </div>
 
-        {/* Navigation */}
-        <nav className="sidebar-nav">
-          {links.map((link) => {
-            const isActive =
-              location.pathname === link.path ||
-              (location.pathname.startsWith(link.path) &&
-                link.path !== '/dashboard' &&
-                link.path !== '/admin');
-            return (
+      {/* Nav */}
+      <nav className="sidebar-nav">
+        <span className="nav-section-label">Main</span>
+        {links.map((link, i) => {
+          const isActive =
+            location.pathname === link.path ||
+            (location.pathname.startsWith(link.path) &&
+             link.path !== '/dashboard' && link.path !== '/admin');
+          return (
+            <motion.div
+              key={link.name}
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.05 + 0.1 }}
+            >
               <Link
-                key={link.name}
                 to={link.path}
                 className={`nav-item ${isActive ? 'active' : ''}`}
                 onClick={(e) => handleNavClick(e, link.path)}
@@ -130,14 +140,21 @@ export default function Sidebar({ isAdmin = false }) {
                 </span>
                 {link.name}
               </Link>
-            );
-          })}
+            </motion.div>
+          );
+        })}
 
-          <div className="nav-divider"></div>
+        <div className="nav-divider" />
 
-          {commonLinks.map((link) => (
+        <span className="nav-section-label">General</span>
+        {commonLinks.map((link, i) => (
+          <motion.div
+            key={link.name}
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: (links.length + i) * 0.05 + 0.1 }}
+          >
             <Link
-              key={link.name}
               to={link.path}
               className="nav-item"
               onClick={(e) => handleNavClick(e, link.path)}
@@ -145,25 +162,81 @@ export default function Sidebar({ isAdmin = false }) {
               <span className="material-symbols-outlined">{link.icon}</span>
               {link.name}
             </Link>
-          ))}
-        </nav>
+          </motion.div>
+        ))}
+      </nav>
 
-        {/* Bottom Area */}
-        <div className="sidebar-bottom">
-          {isAdmin && (
-            <div className="operational-health card surface-lowest ghost-border">
-              <span className="health-title">Operational Health</span>
-              <div className="health-bar-bg">
-                <div className="health-bar-fill" style={{ width: '88%' }}></div>
-              </div>
-              <span className="health-value">88% Capacity utilized</span>
+      {/* Bottom */}
+      <div className="sidebar-bottom">
+        {isAdmin && (
+          <div className="operational-health">
+            <span className="health-title">Operational Health</span>
+            <div className="health-bar-bg">
+              <motion.div
+                className="health-bar-fill"
+                initial={{ width: 0 }}
+                animate={{ width: '88%' }}
+                transition={{ delay: 0.8, duration: 1, ease: [0.4, 0, 0.2, 1] }}
+              />
             </div>
-          )}
-          <button onClick={handleLogout} className="nav-item logout-btn">
-            <span className="material-symbols-outlined">logout</span>
-            Logout
-          </button>
+            <span className="health-value">88% Capacity</span>
+          </div>
+        )}
+
+        {/* User info */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '8px 12px', marginBottom: 4, borderRadius: 10,
+          background: 'var(--surface-container-low)'
+        }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'var(--primary-fixed)', color: 'var(--on-primary-fixed)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 12, flexShrink: 0
+          }}>
+            {userName.charAt(0).toUpperCase()}
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {userName}
+          </span>
         </div>
+
+        <button onClick={handleLogout} className="nav-item logout-btn">
+          <span className="material-symbols-outlined">logout</span>
+          Sign Out
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger */}
+      <button
+        className="sidebar-mobile-toggle"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation"
+      >
+        <span className="material-symbols-outlined">menu</span>
+      </button>
+
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            className="sidebar-overlay open"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeMobile}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar */}
+      <aside className={`sidebar surface-highest ${mobileOpen ? 'open' : ''}`}>
+        <SidebarContent />
       </aside>
 
       <LeaveFlowModal
