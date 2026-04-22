@@ -67,7 +67,7 @@ async function processIngest(req, res, inputType) {
       aiResponse = await axios.post(
         `${AI_ENGINE_URL}/process-grievance-full`,
         formData,
-        { headers: formData.getHeaders(), timeout: 90000 }
+        { headers: formData.getHeaders(), timeout: 180000 }
       );
     } catch (aiErr) {
       console.error('AI engine unavailable during ingest:', aiErr.message);
