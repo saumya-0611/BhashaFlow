@@ -11,8 +11,9 @@ Endpoints:
     POST /speech-to-speech  Full voice pipeline (STT → Translate → TTS)
     POST /process-grievance Unified endpoint for the Node.js backend
 """
-
+from google import genai
 import logging
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException
@@ -45,10 +46,51 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+# ═══════════════════════════════════════════════════════════════════
+#  STARTUP VALIDATION
+# ═══════════════════════════════════════════════════════════════════
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Handles startup and shutdown logic for the BhashaFlow Engine.
+    Replaces the deprecated @app.on_event("startup").
+    """
+    # 1. STARTUP LOGIC
+    logger.info("🚀 BhashaFlow AI Engine is starting up...")
+    
+    # Verify Sarvam
+    if not SARVAM_API_KEY:
+        logger.warning("⚠️ SARVAM_API_KEY is not set!")
+    else:
+        logger.info("✅ SARVAM_API_KEY is configured.")
+
+    # Verify Gemini
+    if not GEMINI_API_KEY:
+        logger.warning("⚠️ GEMINI_API_KEY is not set! Fallback mode enabled.")
+    else:
+        try:
+            # Explicitly pass the key as we found it's not picked up automatically
+            test_client = genai.Client(api_key=GEMINI_API_KEY)
+            
+            # Real API check to confirm quota and model access
+            test_client.models.get(model="gemini-3-flash-preview")
+            logger.info("✅ Gemini connection verified (gemini-3-flash-preview).")
+        except Exception as e:
+            logger.error(f"❌ Gemini Verification Failed: {e}")
+
+    # The 'yield' separates startup from shutdown
+    yield 
+
+    # 2. SHUTDOWN LOGIC (Optional)
+    logger.info("🛑 BhashaFlow AI Engine is shutting down...")
+
 # ── FastAPI App ──────────────────────────────────────────────────
 app = FastAPI(
     title="BhashaFlow AI Engine",
-    description="Multilingual grievance processing — OCR, Translation, and Speech services for Indian languages.",
+    lifespan=lifespan, # Register the lifespan handler here
     version="1.0.0",
 )
 
@@ -60,33 +102,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  STARTUP VALIDATION
-# ═══════════════════════════════════════════════════════════════════
-
-@app.on_event("startup")
-def validate_config():
-    if not SARVAM_API_KEY:
-        logger.warning(
-            "⚠️  SARVAM_API_KEY is not set! "
-            "Translation, STT, and TTS endpoints will fail. "
-            "Set the environment variable and restart."
-        )
-    else:
-        logger.info("✅ SARVAM_API_KEY is configured.")
-
-    if not GEMINI_API_KEY:
-        logger.warning(
-            "⚠️  GEMINI_API_KEY is not set! "
-            "Grievance analysis will use fallback values (no AI categorisation)."
-        )
-    else:
-        logger.info("✅ GEMINI_API_KEY is configured.")
-
-    logger.info("🚀 BhashaFlow AI Engine is starting up...")
-
 
 # ═══════════════════════════════════════════════════════════════════
 #  PYDANTIC MODELS (request bodies for JSON endpoints)
@@ -317,7 +332,7 @@ async def process_grievance_full_endpoint(
     source_language_code: str = Form("auto"),
 ):
     """
-    Full pipeline: extract → translate (Sarvam) → analyse (Gemini 2.0 Flash).
+    Full pipeline: extract → translate (Sarvam) → analyse (Gemini 3.0 Flash).
 
     Called exclusively by the Node.js backend over Docker internal network.
     Returns the complete structured result the backend stores in MongoDB.
