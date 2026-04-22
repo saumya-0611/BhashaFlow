@@ -6,11 +6,12 @@ export default function TopBar() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // KEEP THIS: Protection logic
   const isFlowPath = (path) =>
-    path.startsWith('/verify/') || path.startsWith('/grievance-form/');
+    path.startsWith('/verify/') || path.startsWith('/grievance-form/') || path.startsWith('/review/');
 
   const getFlowGrievanceId = () => {
-    const match = location.pathname.match(/^\/(verify|grievance-form)\/([^/]+)/);
+    const match = location.pathname.match(/^\/(verify|grievance-form|review)\/([^/]+)/);
     return match ? match[2] : null;
   };
 
@@ -26,20 +27,21 @@ export default function TopBar() {
       if (grievanceId) {
         await api.delete(`/api/grievance/${grievanceId}`);
       }
-    } catch {
-      // best effort
-    }
+    } catch { /* best effort */ }
     navigate(path);
   };
   
-  // Minimal breadcrumbs based on paths
+  // KEEP YASH'S VERSION: Better names
   const getBreadcrumbs = () => {
     const path = location.pathname;
-    if (path.includes('dashboard')) return [{ name: 'Dashboard' }];
-    if (path.includes('submit')) return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Submit New' }];
-    if (path.includes('admin')) return [{ name: 'Admin Portal' }];
-    if (path.includes('grievance')) return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'My Grievances', path: '/dashboard' }, { name: 'Detail' }];
-    if (path.includes('ai-result')) return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'AI Insights' }];
+    if (path.includes('dashboard'))      return [{ name: 'Dashboard' }];
+    if (path.includes('submit'))         return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Submit Grievance' }];
+    if (path.includes('verify'))         return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'AI Verification' }];
+    if (path.includes('grievance-form')) return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Your Details' }];
+    if (path.includes('review'))         return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Review & Confirm' }];
+    if (path.includes('ai-result'))      return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'AI Analysis' }];
+    if (path.includes('admin'))          return [{ name: 'Admin Portal' }];
+    if (path.includes('grievance'))      return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Grievance Detail' }];
     return [];
   };
 
@@ -62,8 +64,9 @@ export default function TopBar() {
       </div>
 
       <div className="topbar-actions">
-        <button className="icon-btn">
+        <button className="icon-btn" aria-label="Notifications">
           <span className="material-symbols-outlined">notifications</span>
+          <span className="notif-dot" />
         </button>
         <div className="user-profile">
           <div className="avatar">{userName.charAt(0).toUpperCase()}</div>
