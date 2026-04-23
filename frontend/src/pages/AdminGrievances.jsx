@@ -31,7 +31,7 @@ export default function AdminGrievances() {
         params.append('limit', 20);
         const res = await api.get(`/api/admin/grievances?${params}`);
         setGrievances(res.data.grievances || []);
-        setTotalPages(res.data.totalPages || 1);
+        setTotalPages(res.data.pagination?.total_pages || 1);
       } catch (err) {
         console.error('Failed to fetch grievances', err);
       } finally {

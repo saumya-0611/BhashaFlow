@@ -156,7 +156,7 @@ export default function Sidebar({ isAdmin = false }) {
           >
             <Link
               to={link.path}
-              className="nav-item"
+              className={`nav-item ${isActive ? 'active' : ''}`}
               onClick={(e) => handleNavClick(e, link.path)}
             >
               <span className="material-symbols-outlined">{link.icon}</span>
