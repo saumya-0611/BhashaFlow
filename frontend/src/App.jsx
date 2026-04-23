@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+// Public
+import HomePage from './pages/HomePage';
 // Auth
 import CitizenAuth from './pages/CitizenAuth';
 import OAuthSuccess from './pages/OAuthSuccess';
@@ -78,8 +80,8 @@ function App() {
             element={<AdminRoute><AdminAIInsights /></AdminRoute>} />
 
           {/* ── Fallbacks ───────────────────────────────────── */}
-          <Route path="/"  element={<Navigate to="/auth" replace />} />
-          <Route path="*"  element={<Navigate to="/auth" replace />} />
+          <Route path="/"  element={<HomePage />} />
+          <Route path="*"  element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
   );

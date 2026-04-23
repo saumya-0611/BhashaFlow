@@ -38,11 +38,14 @@ export default function TopBar() {
   // KEEP YASH'S VERSION: Better names
   const getBreadcrumbs = () => {
     const path = location.pathname;
+    // Check if user came from the public home page (no auth session stored in sessionStorage for from-home)
+    const fromHome = sessionStorage.getItem('bf_from_home') === '1';
+    const homeOrDash = fromHome ? { name: 'Home', path: '/' } : { name: 'Dashboard', path: '/dashboard' };
     if (path.includes('dashboard'))      return [{ name: 'Dashboard' }];
-    if (path.includes('submit'))         return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Submit Grievance' }];
-    if (path.includes('verify'))         return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'AI Verification' }];
-    if (path.includes('grievance-form')) return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Your Details' }];
-    if (path.includes('review'))         return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Review & Confirm' }];
+    if (path.includes('submit'))         return [homeOrDash, { name: 'Submit Grievance' }];
+    if (path.includes('verify'))         return [homeOrDash, { name: 'AI Verification' }];
+    if (path.includes('grievance-form')) return [homeOrDash, { name: 'Your Details' }];
+    if (path.includes('review'))         return [homeOrDash, { name: 'Review & Confirm' }];
     if (path.includes('ai-result'))      return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'AI Analysis' }];
     if (path.includes('admin'))          return [{ name: 'Admin Portal' }];
     if (path.includes('grievance'))      return [{ name: 'Dashboard', path: '/dashboard' }, { name: 'Grievance Detail' }];
