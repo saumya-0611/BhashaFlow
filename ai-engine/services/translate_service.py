@@ -7,6 +7,7 @@ between Indian languages (22+ supported) and English.
 
 import logging
 import re
+from typing import Optional
 
 import requests
 
@@ -35,6 +36,33 @@ def _resolve_lang_code(code: str) -> str:
     return code  # already BCP-47 or 'auto'
 
 
+def _guess_source_language_code(text: str) -> Optional[str]:
+    """Guess a reasonable Sarvam source language code from text script."""
+    if re.search(r"[\u0900-\u097F]", text):
+        return "hi-IN"
+    if re.search(r"[\u0980-\u09FF]", text):
+        return "bn-IN"
+    if re.search(r"[\u0A00-\u0A7F]", text):
+        return "pa-IN"
+    if re.search(r"[\u0A80-\u0AFF]", text):
+        return "gu-IN"
+    if re.search(r"[\u0B00-\u0B7F]", text):
+        return "od-IN"
+    if re.search(r"[\u0B80-\u0BFF]", text):
+        return "ta-IN"
+    if re.search(r"[\u0C00-\u0C7F]", text):
+        return "te-IN"
+    if re.search(r"[\u0C80-\u0CFF]", text):
+        return "kn-IN"
+    if re.search(r"[\u0D00-\u0D7F]", text):
+        return "ml-IN"
+    if re.search(r"[\u0600-\u06FF]", text):
+        return "ur-IN"
+    if re.search(r"[A-Za-z0-9]", text) and not re.search(r"[\u0900-\u0DFF]", text):
+        return "en-IN"
+    return None
+
+
 def translate_text(
     text: str,
     source_language_code: str = "auto",
@@ -59,6 +87,15 @@ def translate_text(
     """
     target_bcp47 = _resolve_lang_code(target_language_code)
     source_bcp47 = _resolve_lang_code(source_language_code)
+
+    if source_bcp47 == "auto":
+        guessed = _guess_source_language_code(text)
+        if guessed:
+            logger.info(
+                "Guessed source language from text script: %s; using explicit source_language_code.",
+                guessed,
+            )
+            source_bcp47 = guessed
 
     payload = {
         "input": text,
@@ -97,6 +134,26 @@ def translate_text(
     except requests.exceptions.Timeout:
         raise RuntimeError("Translation request timed out.")
     except requests.exceptions.HTTPError:
+        if resp.status_code == 422 and source_bcp47 == "auto":
+            guessed = _guess_source_language_code(text)
+            if guessed:
+                logger.warning(
+                    "Sarvam could not auto-detect the source language; retrying with %s.",
+                    guessed,
+                )
+                payload["source_language_code"] = guessed
+                resp = requests.post(
+                    SARVAM_TRANSLATE_URL,
+                    headers=SARVAM_HEADERS,
+                    json=payload,
+                    timeout=REQUEST_TIMEOUT,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return {
+                    "translated_text": data.get("translated_text", ""),
+                    "source_language_code": data.get("source_language_code", guessed),
+                }
         raise RuntimeError(
             f"Sarvam Translate API error (HTTP {resp.status_code}): {resp.text}"
         )
