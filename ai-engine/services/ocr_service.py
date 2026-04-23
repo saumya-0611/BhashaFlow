@@ -13,12 +13,9 @@ import easyocr
 import numpy as np
 from PIL import Image
 
-from .config import DEFAULT_OCR_LANGUAGES
+from .config import DEFAULT_OCR_LANGUAGES, MAX_PDF_PAGES, MAX_OCR_TEXT_CHARS, PDF_RENDER_SCALE
 
 logger = logging.getLogger(__name__)
-
-MAX_PDF_PAGES = 5
-PDF_RENDER_SCALE = 2.0
 
 _reader: Optional[easyocr.Reader] = None
 _loaded_languages: list[str] = []
@@ -33,7 +30,7 @@ def _get_reader(languages: list[str]) -> easyocr.Reader:
 
     if _reader is None or set(languages) != set(_loaded_languages):
         logger.info("Initializing EasyOCR reader with languages: %s", languages)
-        _reader = easyocr.Reader(languages, gpu=False)
+        _reader = easyocr.Reader(languages, gpu=False, verbose=False)
         _loaded_languages = list(languages)
         logger.info("EasyOCR reader ready.")
 
@@ -120,6 +117,11 @@ def extract_text_from_image(
 ) -> dict:
     if languages is None:
         languages = DEFAULT_OCR_LANGUAGES
+    else:
+        # Render free/small instances cannot safely load many recognition
+        # packs. Keep OCR bounded and fall back to the preloaded pair.
+        safe_languages = [lang for lang in languages if lang in DEFAULT_OCR_LANGUAGES]
+        languages = safe_languages or DEFAULT_OCR_LANGUAGES
 
     try:
         pages = _load_pages_from_upload(image_bytes, filename, content_type)
@@ -151,8 +153,12 @@ def extract_text_from_image(
             if page_text:
                 text_parts.append(f"[Page {page_number}] {page_text}" if len(pages) > 1 else page_text)
 
+            if sum(len(part) for part in text_parts) >= MAX_OCR_TEXT_CHARS:
+                logger.info("OCR text limit reached at %d chars.", MAX_OCR_TEXT_CHARS)
+                break
+
         return {
-            "extracted_text": "\n\n".join(text_parts).strip(),
+            "extracted_text": "\n\n".join(text_parts).strip()[:MAX_OCR_TEXT_CHARS],
             "details": details,
             "page_count": len(pages),
         }

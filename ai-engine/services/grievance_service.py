@@ -14,7 +14,7 @@ from typing import Optional
 
 from fastapi import File, Form, HTTPException, UploadFile
 
-from .config import DEFAULT_OCR_LANGUAGES
+from .config import MAX_AUDIO_FILE_BYTES, MAX_OCR_FILE_BYTES, MAX_TEXT_CHARS
 from .gemini_service import analyze_with_gemini, analyze_with_gemini_fix_ocr, identify_scripts_with_gemini
 from .ocr_service import extract_text_from_image, get_preview_image_bytes
 from .speech_service import speech_to_text
@@ -57,6 +57,11 @@ async def process_grievance_full(
         audio_bytes = await audio.read()
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="Empty audio file.")
+        if len(audio_bytes) > MAX_AUDIO_FILE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Audio file is too large. Maximum supported size is {MAX_AUDIO_FILE_BYTES // (1024 * 1024)} MB.",
+            )
 
         logger.info("STT: transcribing audio file '%s' (%d bytes)", audio.filename, len(audio_bytes))
         stt_result = speech_to_text(
@@ -76,6 +81,11 @@ async def process_grievance_full(
         image_bytes = await image.read()
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Empty attachment file.")
+        if len(image_bytes) > MAX_OCR_FILE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Attachment is too large for OCR. Maximum supported size is {MAX_OCR_FILE_BYTES // (1024 * 1024)} MB.",
+            )
 
         logger.info(
             "OCR: Processing attachment '%s' (%s, %d bytes)",
@@ -84,7 +94,9 @@ async def process_grievance_full(
             len(image_bytes),
         )
         
-        # Step A: Identify scripts via Gemini Vision
+        # Step A: Identify scripts via Gemini Vision only when explicitly enabled.
+        # Default stays en+hi to preserve the daily Gemini budget and avoid extra
+        # failure points on Render.
         preview_bytes = get_preview_image_bytes(
             image_bytes,
             filename=image.filename,
@@ -113,7 +125,7 @@ async def process_grievance_full(
         logger.info("OCR & Dual Validation done: chars=%d", len(extracted_text))
 
     if text and text.strip():
-        typed_text = text.strip()
+        typed_text = text.strip()[:MAX_TEXT_CHARS]
         text_segments.append(f"Typed complaint:\n{typed_text}")
         input_types.append("text")
         if detected_language in {"auto", "unknown"}:

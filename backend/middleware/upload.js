@@ -47,7 +47,7 @@ const audioFilter = (req, file, cb) => {
 };
 
 // ─── Multer Instances ───────────────────────────────────────────
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE = 4 * 1024 * 1024; // 4 MB, aligned with Render-safe AI limits
 
 export const uploadImage = multer({
   storage,

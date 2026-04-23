@@ -19,6 +19,21 @@ SARVAM_API_KEY = os.getenv("SARVAM_API_KEY", "")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+GEMINI_FALLBACK_MODELS = [
+    model.strip()
+    for model in os.getenv(
+        "GEMINI_FALLBACK_MODELS",
+        "gemini-3-flash-preview,gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash",
+    ).split(",")
+    if model.strip()
+]
+if GEMINI_MODEL not in GEMINI_FALLBACK_MODELS:
+    GEMINI_FALLBACK_MODELS.insert(0, GEMINI_MODEL)
+
+# Keep Gemini usage predictable on small/free quotas. The full grievance flow
+# should normally spend one Gemini call on final classification only.
+GEMINI_ENABLE_OCR_SCRIPT_DETECTION = os.getenv("GEMINI_ENABLE_OCR_SCRIPT_DETECTION", "false").lower() == "true"
+GEMINI_ENABLE_OCR_CLEANUP = os.getenv("GEMINI_ENABLE_OCR_CLEANUP", "false").lower() == "true"
 
 SARVAM_HEADERS = {
     "api-subscription-key": SARVAM_API_KEY,
@@ -30,8 +45,9 @@ SARVAM_TRANSLATE_URL = "https://api.sarvam.ai/translate"
 SARVAM_STT_URL = "https://api.sarvam.ai/speech-to-text"
 SARVAM_TTS_URL = "https://api.sarvam.ai/text-to-speech"
 
-# Request timeout (seconds)
-REQUEST_TIMEOUT = 30
+# Request timeout (seconds). Keep each external API call below the backend's
+# total AI-engine timeout so the user gets a controlled response.
+REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "20"))
 
 # ═══════════════════════════════════════════════════════════════════
 #  LANGUAGE MAPS
@@ -70,7 +86,13 @@ BCP47_TO_SHORT = {v: k for k, v in LANG_CODES.items()}
 
 # Default subset of languages for EasyOCR
 # (more languages = more memory; keep this tight)
-DEFAULT_OCR_LANGUAGES = ["en", "hi", "mr", "ta", "te", "kn", "bn"]
+DEFAULT_OCR_LANGUAGES = ["en", "hi"]
+MAX_OCR_FILE_BYTES = int(os.getenv("MAX_OCR_FILE_BYTES", str(4 * 1024 * 1024)))
+MAX_AUDIO_FILE_BYTES = int(os.getenv("MAX_AUDIO_FILE_BYTES", str(4 * 1024 * 1024)))
+MAX_TEXT_CHARS = int(os.getenv("MAX_TEXT_CHARS", "4000"))
+MAX_OCR_TEXT_CHARS = int(os.getenv("MAX_OCR_TEXT_CHARS", "2500"))
+MAX_PDF_PAGES = int(os.getenv("MAX_PDF_PAGES", "2"))
+PDF_RENDER_SCALE = float(os.getenv("PDF_RENDER_SCALE", "1.35"))
 
 # ═══════════════════════════════════════════════════════════════════
 #  TTS CONFIGURATION

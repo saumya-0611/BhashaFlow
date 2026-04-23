@@ -16,7 +16,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
-from .config import GEMINI_API_KEY, GEMINI_MODEL
+from .config import GEMINI_API_KEY, GEMINI_ENABLE_OCR_CLEANUP, GEMINI_ENABLE_OCR_SCRIPT_DETECTION, GEMINI_FALLBACK_MODELS, GEMINI_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +26,8 @@ if GEMINI_API_KEY:
 else:
     _client = None
     logger.warning("GEMINI_API_KEY not set - analysis will use fallback values.")
+
+_unavailable_models: set[str] = set()
 
 
 class GrievanceAnalysis(BaseModel):
@@ -48,12 +50,34 @@ class GrievanceAnalysis(BaseModel):
 
 
 def _fallback(english_text: str) -> dict:
+    lower_text = english_text.lower()
+    category_keywords = {
+        "electricity_water": ("electricity", "power cut", "water", "bill", "supply"),
+        "sanitation": ("garbage", "drain", "sewage", "cleaning", "waste"),
+        "banking": ("bank", "atm", "upi", "account", "transaction"),
+        "cybercrime": ("scam", "fraud", "phishing", "hacked", "otp"),
+        "road_transport": ("road", "bus", "rto", "license", "traffic"),
+        "railways": ("train", "railway", "irctc", "station"),
+        "health_schemes": ("hospital", "doctor", "ayushman", "medical"),
+        "passport": ("passport", "police verification"),
+        "aadhaar": ("aadhaar", "uidai"),
+        "postal_services": ("parcel", "post office", "speed post"),
+    }
+    category = "other"
+    keywords: list[str] = []
+    for candidate, words in category_keywords.items():
+        matched = [word for word in words if word in lower_text]
+        if matched:
+            category = candidate
+            keywords = matched[:5]
+            break
+
     return {
         "title": english_text[:60].strip(),
         "english_summary": english_text,
-        "verification_sentence": "kya yeh sahi hai?",
-        "category": "other",
-        "keywords": [],
+        "verification_sentence": "Is this correct?",
+        "category": category,
+        "keywords": keywords,
         "confidence_score": 0.5,
     }
 
@@ -88,11 +112,22 @@ def _retry_delay_seconds(exc: Exception) -> int | None:
     return max(1, int(float(match.group(1))))
 
 
+def _is_model_unavailable(exc: Exception) -> bool:
+    text = str(exc).lower()
+    status_code = getattr(exc, "status_code", None)
+    return status_code == 404 or "not found" in text or "not supported" in text
+
+
+def _model_candidates() -> list[str]:
+    candidates = [model for model in GEMINI_FALLBACK_MODELS if model not in _unavailable_models]
+    return candidates or [GEMINI_MODEL]
+
+
 def identify_scripts_with_gemini(image_bytes: bytes) -> list[str]:
     """
     Use Gemini Vision to identify Indian scripts in an uploaded grievance image.
     """
-    if _client is None:
+    if _client is None or not GEMINI_ENABLE_OCR_SCRIPT_DETECTION:
         return ["en", "hi"]
 
     image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/png")
@@ -102,23 +137,30 @@ Identify EVERY script or language present (e.g., Hindi, Malayalam, English, Tami
 Return ONLY a comma-separated list of ISO codes like: hi, ml, en, ta.
 Be thorough - if you see mixed scripts, list them all."""
 
-    try:
-        response = _client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=[prompt, image_part],
-        )
-        return [code.strip().lower() for code in response.text.split(",")]
-    except Exception as e:
-        if _is_gemini_quota_error(e):
-            logger.warning("Gemini script identification quota/rate limited - using default scripts.")
-        else:
-            logger.error("Script identification failed: %s", e)
-        return ["en", "hi"]
+    for model in _model_candidates():
+        try:
+            response = _client.models.generate_content(
+                model=model,
+                contents=[prompt, image_part],
+            )
+            return [code.strip().lower() for code in response.text.split(",")]
+        except Exception as e:
+            if _is_model_unavailable(e):
+                _unavailable_models.add(model)
+                logger.warning("Gemini model %s unavailable for script detection.", model)
+                continue
+            if _is_gemini_quota_error(e):
+                logger.warning("Gemini script identification quota/rate limited - using default scripts.")
+            else:
+                logger.error("Script identification failed: %s", e)
+            return ["en", "hi"]
+
+    return ["en", "hi"]
 
 
 def analyze_with_gemini_fix_ocr(raw_text: str, identified_langs: list[str]) -> str:
     """Dual validation: Gemini cleans noisy OCR text based on context."""
-    if _client is None or not raw_text.strip():
+    if _client is None or not GEMINI_ENABLE_OCR_CLEANUP or not raw_text.strip():
         return raw_text
 
     prompt = f"""The following text was extracted via OCR from a citizen grievance in {identified_langs}.
@@ -130,15 +172,22 @@ RAW OCR TEXT:
 
 Return ONLY the corrected text."""
 
-    try:
-        response = _client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
-        return response.text.strip()
-    except Exception as e:
-        if _is_gemini_quota_error(e):
-            logger.warning("Gemini OCR cleanup quota/rate limited - using raw OCR text.")
-        else:
-            logger.error("OCR fix failed: %s", e)
-        return raw_text
+    for model in _model_candidates():
+        try:
+            response = _client.models.generate_content(model=model, contents=prompt)
+            return response.text.strip()
+        except Exception as e:
+            if _is_model_unavailable(e):
+                _unavailable_models.add(model)
+                logger.warning("Gemini model %s unavailable for OCR cleanup.", model)
+                continue
+            if _is_gemini_quota_error(e):
+                logger.warning("Gemini OCR cleanup quota/rate limited - using raw OCR text.")
+            else:
+                logger.error("OCR fix failed: %s", e)
+            return raw_text
+
+    return raw_text
 
 
 def analyze_with_gemini(english_text: str, detected_language: str) -> dict:
@@ -193,71 +242,79 @@ Categories Guide:
 For verification_sentence: write a short yes/no question in {detected_language} confirming the issue type.
 Example for hi-IN: 'kya yeh paani ki samasya hai?'"""
 
-    max_retries = 4
+    max_retries = 2
     base_delay = 2
 
-    for attempt in range(max_retries):
-        try:
-            response = _client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=(
-                        "You are an AI assistant for BhashaFlow, an Indian government "
-                        "citizen grievance portal. Analyze complaints and extract structured data."
+    for model in _model_candidates():
+        for attempt in range(max_retries):
+            try:
+                response = _client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=(
+                            "You are an AI assistant for BhashaFlow, an Indian government "
+                            "citizen grievance portal. Analyze complaints and extract structured data."
+                        ),
+                        response_mime_type="application/json",
+                        response_schema=GrievanceAnalysis,
+                        temperature=0.2,
                     ),
-                    response_mime_type="application/json",
-                    response_schema=GrievanceAnalysis,
-                    temperature=0.2,
-                ),
-            )
+                )
 
-            parsed: GrievanceAnalysis = response.parsed
-            if parsed is None:
-                logger.warning("Gemini returned no parsed object - using fallback.")
-                return _fallback(english_text)
-
-            logger.info(
-                "Gemini done: category=%s, confidence=%.2f",
-                parsed.category,
-                parsed.confidence_score,
-            )
-
-            return {
-                "title": parsed.title,
-                "english_summary": parsed.english_summary,
-                "verification_sentence": parsed.verification_sentence,
-                "category": parsed.category,
-                "keywords": parsed.keywords,
-                "confidence_score": parsed.confidence_score,
-            }
-
-        except Exception as e:
-            if _is_gemini_quota_error(e):
-                if _is_exhausted_quota(e):
-                    logger.warning(
-                        "Gemini quota exhausted for model %s - using fallback without retry.",
-                        GEMINI_MODEL,
-                    )
+                parsed: GrievanceAnalysis = response.parsed
+                if parsed is None:
+                    logger.warning("Gemini returned no parsed object - using fallback.")
                     return _fallback(english_text)
 
-                if attempt < max_retries - 1:
-                    retry_delay = _retry_delay_seconds(e)
-                    wait = retry_delay if retry_delay is not None else base_delay * (2 ** attempt)
-                    logger.warning(
-                        "Gemini 429 - retrying in %ds (attempt %d/%d)",
-                        wait,
-                        attempt + 1,
-                        max_retries,
-                    )
-                    time.sleep(wait)
-                    continue
+                logger.info(
+                    "Gemini done with %s: category=%s, confidence=%.2f",
+                    model,
+                    parsed.category,
+                    parsed.confidence_score,
+                )
 
-                logger.warning("Gemini 429 persisted after %d attempts - using fallback.", max_retries)
+                return {
+                    "title": parsed.title,
+                    "english_summary": parsed.english_summary,
+                    "verification_sentence": parsed.verification_sentence,
+                    "category": parsed.category,
+                    "keywords": parsed.keywords,
+                    "confidence_score": parsed.confidence_score,
+                }
+
+            except Exception as e:
+                if _is_model_unavailable(e):
+                    _unavailable_models.add(model)
+                    logger.warning("Gemini model %s unavailable - trying next configured model.", model)
+                    break
+
+                if _is_gemini_quota_error(e):
+                    if _is_exhausted_quota(e):
+                        logger.warning(
+                            "Gemini quota exhausted for model %s - trying next configured model.",
+                            model,
+                        )
+                        break
+
+                    if attempt < max_retries - 1:
+                        retry_delay = _retry_delay_seconds(e)
+                        wait = min(retry_delay if retry_delay is not None else base_delay * (2 ** attempt), 8)
+                        logger.warning(
+                            "Gemini 429 on %s - retrying in %ds (attempt %d/%d)",
+                            model,
+                            wait,
+                            attempt + 1,
+                            max_retries,
+                        )
+                        time.sleep(wait)
+                        continue
+
+                    logger.warning("Gemini 429 persisted for model %s - trying next configured model.", model)
+                    break
+
+                logger.exception("Gemini API call failed on %s: %s - using fallback.", model, e)
                 return _fallback(english_text)
 
-            logger.exception("Gemini API call failed: %s - using fallback.", e)
-            return _fallback(english_text)
-
-    logger.error("Gemini failed after %d attempts - using fallback.", max_retries)
+    logger.error("Gemini failed for all configured models - using fallback.")
     return _fallback(english_text)

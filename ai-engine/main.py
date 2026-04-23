@@ -28,6 +28,9 @@ from services.config import (
     LANG_NAMES,
     BCP47_TO_SHORT,
     DEFAULT_OCR_LANGUAGES,
+    MAX_AUDIO_FILE_BYTES,
+    MAX_OCR_FILE_BYTES,
+    MAX_TEXT_CHARS,
     DEFAULT_TTS_SPEAKER,
     DEFAULT_TTS_PACE,
 )
@@ -178,6 +181,11 @@ async def ocr_endpoint(
 
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty image file.")
+    if len(image_bytes) > MAX_OCR_FILE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Attachment is too large for OCR. Maximum supported size is {MAX_OCR_FILE_BYTES // (1024 * 1024)} MB.",
+        )
 
     try:
         result = extract_text_from_image(image_bytes, lang_list)
@@ -242,6 +250,11 @@ async def stt_endpoint(
 
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio file.")
+    if len(audio_bytes) > MAX_AUDIO_FILE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Audio file is too large. Maximum supported size is {MAX_AUDIO_FILE_BYTES // (1024 * 1024)} MB.",
+        )
 
     try:
         result = speech_to_text(
@@ -308,6 +321,11 @@ async def speech_to_speech_endpoint(
 
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="Empty audio file.")
+    if len(audio_bytes) > MAX_AUDIO_FILE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Audio file is too large. Maximum supported size is {MAX_AUDIO_FILE_BYTES // (1024 * 1024)} MB.",
+        )
 
     try:
         result = speech_to_speech(
@@ -377,6 +395,11 @@ async def process_grievance(
         audio_bytes = await audio.read()
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="Empty audio file.")
+        if len(audio_bytes) > MAX_AUDIO_FILE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Audio file is too large. Maximum supported size is {MAX_AUDIO_FILE_BYTES // (1024 * 1024)} MB.",
+            )
 
         stt_result = speech_to_text(
             audio_bytes=audio_bytes,
@@ -392,13 +415,18 @@ async def process_grievance(
         image_bytes = await image.read()
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Empty image file.")
+        if len(image_bytes) > MAX_OCR_FILE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Attachment is too large for OCR. Maximum supported size is {MAX_OCR_FILE_BYTES // (1024 * 1024)} MB.",
+            )
 
         ocr_result = extract_text_from_image(image_bytes)
         extracted_text = ocr_result["extracted_text"]
         input_type = "image"
 
     elif text and text.strip():
-        extracted_text = text.strip()
+        extracted_text = text.strip()[:MAX_TEXT_CHARS]
         input_type = "text"
 
     else:
