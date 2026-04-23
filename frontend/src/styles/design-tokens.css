@@ -386,3 +386,35 @@ a:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--outline);
 }
+
+/* ═══════════════════════════════════════════════════════
+   DARK THEME OVERRIDES
+   ═══════════════════════════════════════════════════════ */
+.dark-theme {
+  --background: #121212;
+  --on-background: #e1e3e5;
+  --surface: #121212;
+  --surface-dim: #1e1e1e;
+  --surface-bright: #383838;
+  --surface-container-lowest: #000000;
+  --surface-container-low: #1c1c1c;
+  --surface-container: #252525;
+  --surface-container-high: #2d2d2d;
+  --surface-container-highest: #363636;
+  --on-surface: #e1e3e5;
+  --on-surface-variant: #c4c6c8;
+  --inverse-surface: #e1e3e5;
+  --inverse-on-surface: #121212;
+  --outline: #8e9092;
+  --outline-variant: #43474a;
+  
+  --primary: #bdc2ff;
+  --primary-container: #1a237e;
+  --on-primary: #000666;
+  --on-primary-container: #e0e0ff;
+  
+  /* Elevate shadows for dark mode */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
