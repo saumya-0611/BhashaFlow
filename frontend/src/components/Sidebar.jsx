@@ -147,23 +147,29 @@ export default function Sidebar({ isAdmin = false }) {
         <div className="nav-divider" />
 
         <span className="nav-section-label">General</span>
-        {commonLinks.map((link, i) => (
-          <motion.div
-            key={link.name}
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: (links.length + i) * 0.05 + 0.1 }}
-          >
-            <Link
-              to={link.path}
-              className={`nav-item ${isActive ? 'active' : ''}`}
-              onClick={(e) => handleNavClick(e, link.path)}
+        {commonLinks.map((link, i) => {
+          const isActive =
+            location.pathname === link.path ||
+            (location.pathname.startsWith(link.path) &&
+             link.path !== '/dashboard' && link.path !== '/admin');
+          return (
+            <motion.div
+              key={link.name}
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: (links.length + i) * 0.05 + 0.1 }}
             >
-              <span className="material-symbols-outlined">{link.icon}</span>
-              {link.name}
-            </Link>
-          </motion.div>
-        ))}
+              <Link
+                to={link.path}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={(e) => handleNavClick(e, link.path)}
+              >
+                <span className="material-symbols-outlined">{link.icon}</span>
+                {link.name}
+              </Link>
+            </motion.div>
+          );
+        })}
       </nav>
 
       {/* Bottom */}
