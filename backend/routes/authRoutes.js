@@ -4,6 +4,9 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '../utils/mailer.js';
+import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
+import auth from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -126,6 +129,79 @@ router.post('/reset-password/:token', async (req, res) => {
     await user.save();
 
     res.status(200).json({ message: 'Password has been successfully reset. Please log in.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ─── CHANGE PASSWORD (LOGGED IN USER) ───────────────────────────
+router.post('/change-password', auth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Incorrect current password' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ─── 2FA GENERATE ─────────────────────────────────────────────
+router.post('/2fa/generate', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const secret = speakeasy.generateSecret({
+      name: `BhashaFlow (${user.email})`
+    });
+
+    user.twoFactorSecret = secret.base32;
+    await user.save();
+
+    qrcode.toDataURL(secret.otpauth_url, (err, data_url) => {
+      if (err) return res.status(500).json({ message: 'Error generating QR code' });
+      res.status(200).json({
+        secret: secret.base32,
+        qrCodeUrl: data_url
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ─── 2FA VERIFY & ENABLE ──────────────────────────────────────
+router.post('/2fa/verify', auth, async (req, res) => {
+  const { token } = req.body;
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: token
+    });
+
+    if (verified) {
+      user.isTwoFactorEnabled = true;
+      await user.save();
+      res.status(200).json({ message: 'Two-Factor Authentication enabled successfully' });
+    } else {
+      res.status(400).json({ message: 'Invalid 2FA token' });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
