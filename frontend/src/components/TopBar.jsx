@@ -1,10 +1,14 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import './TopBar.css';
 
 export default function TopBar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const [showNotif, setShowNotif] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // KEEP THIS: Protection logic
   const isFlowPath = (path) =>
@@ -47,6 +51,49 @@ export default function TopBar() {
 
   const breadcrumbs = getBreadcrumbs();
   const userName = localStorage.getItem('userName') || 'Citizen';
+  const userRole = localStorage.getItem('userRole');
+
+  // Utility to convert date to human-readable format
+  const timeAgo = (date) => {
+    if (!date) return '';
+    const d = Math.floor((Date.now() - new Date(date)) / 86400000);
+    return d === 0 ? 'Today' : d === 1 ? 'Yesterday' : `${d}d ago`;
+  };
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        let res;
+        if (userRole === 'admin' || userRole === 'authority') {
+          res = await api.get('/api/admin/grievances?page=1&limit=5&status=pending');
+          const notifs = res.data.grievances.map(g => ({
+            id: g._id,
+            message: `New grievance: ${g.title || 'Untitled'}`,
+            time: timeAgo(g.submitted_at),
+            link: `/grievance/${g._id}`,
+            unread: true
+          }));
+          setNotifications(notifs);
+          setUnreadCount(notifs.length);
+        } else {
+          res = await api.get('/api/grievance/recent');
+          const grievances = res.data.grievances || [];
+          const notifs = grievances.filter(g => g.status !== 'resolved' && g.status !== 'closed').map(g => ({
+            id: g._id,
+            message: `Update on grievance: ${g.title || 'Untitled'} - ${g.status}`,
+            time: timeAgo(g.submitted_at),
+            link: `/grievance/${g._id}`,
+            unread: true
+          }));
+          setNotifications(notifs);
+          setUnreadCount(notifs.length);
+        }
+      } catch (err) {
+        console.error('Failed to fetch notifications', err);
+      }
+    };
+    fetchNotifications();
+  }, [userRole]);
 
   return (
     <header className="topbar">
@@ -66,10 +113,30 @@ export default function TopBar() {
       </div>
 
       <div className="topbar-actions">
-        <button className="icon-btn" aria-label="Notifications">
-          <span className="material-symbols-outlined">notifications</span>
-          <span className="notif-dot" />
-        </button>
+        <div className="notif-container">
+          <button className="icon-btn" aria-label="Notifications" onClick={() => setShowNotif(!showNotif)}>
+            <span className="material-symbols-outlined">notifications</span>
+            {unreadCount > 0 && <span className="notif-dot" />}
+          </button>
+          {showNotif && (
+            <div className="notif-dropdown">
+              <div className="notif-header">
+                <h4>Notifications</h4>
+                <button onClick={() => setUnreadCount(0)}>Mark all read</button>
+              </div>
+              <div className="notif-list">
+                {notifications.length > 0 ? notifications.map(notif => (
+                  <Link key={notif.id} to={notif.link} className="notif-item" onClick={() => setShowNotif(false)}>
+                    <p>{notif.message}</p>
+                    <span>{notif.time}</span>
+                  </Link>
+                )) : (
+                  <p className="no-notifs">No new notifications</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="user-profile">
           <div className="avatar">{userName.charAt(0).toUpperCase()}</div>

@@ -10,6 +10,7 @@ export default function Settings() {
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState('en');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Security States
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -24,35 +25,51 @@ export default function Settings() {
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
 
   useEffect(() => {
-    // Load existing preferences/user info
-    const storedName = localStorage.getItem('userName') || 'Citizen User';
-    setUserName(storedName);
-    setEmail('citizen@example.gov.in'); // Placeholder email since we don't store it in localStorage currently
-    
-    // Load Dark Mode
-    const isDark = localStorage.getItem('darkMode') === 'true';
-    setDarkMode(isDark);
-    if (isDark) {
-      document.body.classList.add('dark-theme');
-    }
-  }, []);
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleInputChange = (setter) => (e) => {
+    setter(e.target.value);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleCheckboxChange = (setter) => (e) => {
+    setter(e.target.checked);
+    setHasUnsavedChanges(true);
+  };
 
   const toggleDarkMode = (e) => {
     const isDark = e.target.checked;
     setDarkMode(isDark);
-    localStorage.setItem('darkMode', isDark);
-    if (isDark) {
-      document.body.classList.add('dark-theme');
-    } else {
-      document.body.classList.remove('dark-theme');
-    }
+    setHasUnsavedChanges(true);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    // Simulate save
-    localStorage.setItem('userName', userName);
-    alert('Settings saved successfully!');
+    try {
+      // Save to backend if needed, for now localStorage
+      localStorage.setItem('userName', userName);
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('notifications', notifications);
+      localStorage.setItem('darkMode', darkMode);
+      localStorage.setItem('language', language);
+      if (darkMode) {
+        document.body.classList.add('dark-theme');
+      } else {
+        document.body.classList.remove('dark-theme');
+      }
+      setHasUnsavedChanges(false);
+      alert('Settings saved successfully!');
+    } catch (err) {
+      alert('Failed to save settings');
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -138,8 +155,7 @@ export default function Settings() {
                     type="email" 
                     id="email" 
                     value={email} 
-                    disabled 
-                    title="Email cannot be changed"
+                    onChange={handleInputChange(setEmail)}
                   />
                 </div>
               </div>
@@ -164,7 +180,7 @@ export default function Settings() {
                 <select 
                   id="language" 
                   value={language} 
-                  onChange={(e) => setLanguage(e.target.value)}
+                  onChange={handleInputChange(setLanguage)}
                 >
                   <option value="en">English</option>
                   <option value="hi">Hindi (हिन्दी)</option>
@@ -183,7 +199,7 @@ export default function Settings() {
                   <input 
                     type="checkbox" 
                     checked={notifications} 
-                    onChange={(e) => setNotifications(e.target.checked)} 
+                    onChange={handleCheckboxChange(setNotifications)} 
                   />
                   <span className="slider"></span>
                 </label>
@@ -246,7 +262,10 @@ export default function Settings() {
           </motion.section>
 
           <div className="settings-actions">
-            <button type="button" className="btn btn-tertiary" onClick={() => window.history.back()}>Cancel</button>
+            <button type="button" className="btn btn-tertiary" onClick={() => {
+              if (hasUnsavedChanges && !window.confirm('You have unsaved changes. Are you sure you want to leave?')) return;
+              window.history.back();
+            }}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save Changes</button>
           </div>
         </form>

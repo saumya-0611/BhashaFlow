@@ -188,16 +188,61 @@
   transform: none;
 }
 
-/* Badge on nav item */
-.nav-badge {
-  margin-left: auto;
-  background: var(--saffron);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 20px;
-  line-height: 16px;
+/* User profile in sidebar */
+.user-profile-sidebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  background: var(--surface-container-low);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.user-profile-sidebar:hover {
+  background: var(--surface-container-high);
+}
+
+.user-menu {
+  margin-bottom: 16px;
+  border-radius: 10px;
+  background: var(--surface-container-low);
+  overflow: hidden;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--on-surface);
+  text-decoration: none;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.user-menu-item:hover {
+  background: var(--surface-container-high);
+}
+
+.user-menu-item .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--outline);
+}
+
+.user-menu-item.logout {
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  color: var(--error);
+}
+
+.user-menu-item.logout .material-symbols-outlined {
+  color: var(--error);
+}
 }
 
 .nav-divider {

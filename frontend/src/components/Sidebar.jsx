@@ -14,7 +14,8 @@ export default function Sidebar({ isAdmin = false }) {
   const [showModal, setShowModal]   = useState(false);
   const [pendingPath, setPendingPath] = useState(null);
   const [deleting, setDeleting]     = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mobileOpen, setMobileOpen]     = useState(false);
 
   const isFlowPath = (path) =>
     path.startsWith('/verify/') ||
@@ -147,29 +148,6 @@ export default function Sidebar({ isAdmin = false }) {
         <div className="nav-divider" />
 
         <span className="nav-section-label">General</span>
-        {commonLinks.map((link, i) => {
-          const isActive =
-            location.pathname === link.path ||
-            (location.pathname.startsWith(link.path) &&
-             link.path !== '/dashboard' && link.path !== '/admin');
-          return (
-            <motion.div
-              key={link.name}
-              initial={{ opacity: 0, x: -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: (links.length + i) * 0.05 + 0.1 }}
-            >
-              <Link
-                to={link.path}
-                className={`nav-item ${isActive ? 'active' : ''}`}
-                onClick={(e) => handleNavClick(e, link.path)}
-              >
-                <span className="material-symbols-outlined">{link.icon}</span>
-                {link.name}
-              </Link>
-            </motion.div>
-          );
-        })}
       </nav>
 
       {/* Bottom */}
@@ -189,12 +167,8 @@ export default function Sidebar({ isAdmin = false }) {
           </div>
         )}
 
-        {/* User info */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '8px 12px', marginBottom: 4, borderRadius: 10,
-          background: 'var(--surface-container-low)'
-        }}>
+        {/* User profile */}
+        <div className="user-profile-sidebar" onClick={() => setShowUserMenu(!showUserMenu)}>
           <div style={{
             width: 30, height: 30, borderRadius: '50%',
             background: 'var(--primary-fixed)', color: 'var(--on-primary-fixed)',
@@ -206,12 +180,27 @@ export default function Sidebar({ isAdmin = false }) {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {userName}
           </span>
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--outline)', marginLeft: 'auto' }}>
+            {showUserMenu ? 'expand_less' : 'expand_more'}
+          </span>
         </div>
 
-        <button onClick={handleLogout} className="nav-item logout-btn">
-          <span className="material-symbols-outlined">logout</span>
-          Sign Out
-        </button>
+        {showUserMenu && (
+          <div className="user-menu">
+            <Link to="/settings" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
+              <span className="material-symbols-outlined">settings</span>
+              Settings
+            </Link>
+            <Link to="/help" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
+              <span className="material-symbols-outlined">help</span>
+              Help
+            </Link>
+            <button onClick={handleLogout} className="user-menu-item logout">
+              <span className="material-symbols-outlined">logout</span>
+              Sign Out
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
