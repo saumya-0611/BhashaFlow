@@ -42,7 +42,7 @@ from services.speech_service import (
     speech_to_speech,
 )
 from services.grievance_service import process_grievance_full
-from services.gemini_service import locate_nearby_offices
+from services.gemini_service import locate_nearby_offices, translate_analysis_data
 
 # ── Logging ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -479,3 +479,19 @@ def nearby_offices_endpoint(
     """
     offices = locate_nearby_offices(category, district, state)
     return {"success": True, "offices": offices}
+
+
+class TranslateAnalysisRequest(BaseModel):
+    summary: str
+    category: str
+    steps: list[str]
+    offices: list[str]
+    target_lang: str
+
+@app.post("/translate-analysis")
+def translate_analysis_endpoint(req: TranslateAnalysisRequest):
+    """
+    Translate the entire analysis data for PDF generation.
+    """
+    translated = translate_analysis_data(req.model_dump(), req.target_lang)
+    return {"success": True, "translated": translated}

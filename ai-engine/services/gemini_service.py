@@ -358,3 +358,45 @@ Return a list of exactly these offices."""
             logger.warning("Gemini location fetch failed on %s: %s", model, e)
     
     return []
+
+
+class TranslatedAnalysis(BaseModel):
+    summary: str = Field(description="Translated English summary into the target language")
+    category: str = Field(description="Translated category name (e.g. 'Electricity' to 'Bijli')")
+    steps: list[str] = Field(description="List of translated procedure steps")
+    offices: list[str] = Field(description="List of translated office names")
+
+def translate_analysis_data(data: dict, target_lang: str) -> dict:
+    """Translate analysis fields using Gemini for natural contextual flow."""
+    if _client is None:
+        return data
+
+    prompt = f"""Translate the following Indian government grievance analysis data into {target_lang}.
+Ensure the tone is official and helpful.
+
+Data to translate:
+- Summary: {data.get('summary', '')}
+- Category: {data.get('category', '')}
+- Next Steps: {", ".join(data.get('steps', []))}
+- Offices: {", ".join(data.get('offices', []))}
+
+Return the translated results as a JSON object."""
+
+    for model in _model_candidates():
+        try:
+            response = _client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=TranslatedAnalysis,
+                    temperature=0.1,
+                ),
+            )
+            parsed: TranslatedAnalysis = response.parsed
+            if parsed:
+                return parsed.model_dump()
+        except Exception as e:
+            logger.warning("Gemini translation of analysis failed on %s: %s", model, e)
+    
+    return data

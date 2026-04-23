@@ -301,4 +301,24 @@ router.get('/:id/audio', auth, async (req, res) => {
   }
 });
 
-export default router;
+// ─── POST /api/grievance/:id/translate-analysis ─────────────
+router.post('/:id/translate-analysis', auth, async (req, res) => {
+  try {
+    const { target_lang, summary, category, steps, offices } = req.body;
+    
+    const aiResponse = await axios.post(`${AI_ENGINE_URL}/translate-analysis`, {
+      summary,
+      category,
+      steps,
+      offices,
+      target_lang
+    });
+
+    res.status(200).json(aiResponse.data);
+  } catch (error) {
+    console.error('❌ Translate Analysis error:', error.message);
+    res.status(500).json({ message: 'Failed to translate analysis', error: error.message });
+  }
+});
+
+export default router;

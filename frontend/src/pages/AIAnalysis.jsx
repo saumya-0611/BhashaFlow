@@ -7,6 +7,8 @@ import api from '../utils/api';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import './AIAnalysis.css';
 
 // Fix Leaflet's default icon path issues in React
@@ -38,6 +40,10 @@ export default function AIAnalysis() {
   const [data, setData]       = useState(location.state || null);
   const [loading, setLoading] = useState(!location.state);
   const [error, setError]     = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translated, setTranslated]     = useState(null);
+  const [isNative, setIsNative]           = useState(false);
 
   useEffect(() => {
     if (location.state) return;
@@ -104,7 +110,92 @@ export default function AIAnalysis() {
     procedure_steps          = [],
     expected_resolution_days = null,
     confidence_score,
+    detected_language        = 'en-IN',
   } = data;
+
+  const displayData = isNative && translated ? {
+    summary: translated.summary,
+    category: translated.category,
+    steps: translated.steps,
+    offices: translated.offices,
+  } : {
+    summary: english_summary,
+    category: category,
+    steps: procedure_steps,
+    offices: nearby_offices.map(o => o.name || o),
+  };
+
+  const fetchTranslation = async () => {
+    if (translated) return translated;
+    setIsTranslating(true);
+    try {
+      const res = await api.post(`/api/grievance/${id}/translate-analysis`, {
+        target_lang: detected_language,
+        summary: english_summary,
+        category: category,
+        steps: procedure_steps,
+        offices: nearby_offices.map(o => o.name || o),
+      });
+      if (res.data?.success) {
+        setTranslated(res.data.translated);
+        setIsTranslating(false);
+        return res.data.translated;
+      }
+    } catch (e) {
+      console.error('Translation failed', e);
+      setIsTranslating(false);
+    }
+    return null;
+  };
+
+  const handleToggleLanguage = async () => {
+    if (isNative) {
+      setIsNative(false);
+    } else {
+      await fetchTranslation();
+      setIsNative(true);
+    }
+  };
+
+  const handleDownloadSummary = async () => {
+    setIsDownloading(true);
+    try {
+      if (!translated && detected_language !== 'en-IN' && detected_language !== 'en') {
+        const t = await fetchTranslation();
+        if (t) setIsNative(true);
+      } else if (detected_language !== 'en-IN' && detected_language !== 'en') {
+        setIsNative(true);
+      }
+
+      setTimeout(async () => {
+        const element = document.getElementById('ai-analysis-content');
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#0f172a', // Match theme dark background
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`grievance_summary_${id}.pdf`);
+        
+        // Reset to English after capture if desired, or let them stay
+        // setIsNative(false); 
+        setIsDownloading(false);
+      }, 500);
+
+    } catch (err) {
+      console.error('PDF Generation failed:', err);
+      setIsDownloading(false);
+      window.print(); // Fallback
+    }
+  };
 
   const portalsArray = (() => {
     if (!portal_links) return [];
@@ -136,7 +227,7 @@ export default function AIAnalysis() {
 
   return (
     <DashboardLayout>
-      <div className="ai-page">
+      <div className="ai-page" id="ai-analysis-content">
 
         {/* Success banner */}
         <motion.div
@@ -160,7 +251,6 @@ export default function AIAnalysis() {
         </motion.div>
 
         {/* Summary quote */}
-        {english_summary && (
           <motion.div
             className="ai-quote"
             initial={{ opacity: 0, x: -12 }}
@@ -168,9 +258,8 @@ export default function AIAnalysis() {
             transition={{ delay: 0.2, duration: 0.4 }}
           >
             <span className="material-symbols-outlined quote-icon">format_quote</span>
-            <p><strong>AI Summary: </strong>{english_summary}</p>
+            <p><strong>{isNative ? 'एआई सारांश' : 'AI Summary'}: </strong>{displayData.summary}</p>
           </motion.div>
-        )}
 
         <div className="ai-grid">
           <div className="ai-main">
@@ -184,7 +273,7 @@ export default function AIAnalysis() {
               <div className="class-grid">
                 <div className="class-item">
                   <span className="class-label">Category</span>
-                  <span className="class-value" style={{ textTransform: 'capitalize' }}>{category}</span>
+                  <span className="class-value" style={{ textTransform: 'capitalize' }}>{displayData.category}</span>
                 </div>
                 {confidence_score != null && (
                   <div className="class-item">
@@ -243,9 +332,9 @@ export default function AIAnalysis() {
                 <span className="material-symbols-outlined" style={{ color: 'var(--emerald)' }}>format_list_numbered</span>
                 Next Steps
               </h2>
-              {procedure_steps.length > 0 ? (
+              {displayData.steps.length > 0 ? (
                 <div className="procedure-list">
-                  {procedure_steps.map((step, i) => (
+                  {displayData.steps.map((step, i) => (
                     <motion.div
                       key={i}
                       className="procedure-step"
@@ -267,14 +356,50 @@ export default function AIAnalysis() {
             <motion.div className="ai-cta" custom={3} variants={sectionVariants} initial="hidden" animate="show">
               <p>Save this analysis for your records or return to your dashboard to track progress.</p>
               <div className="ai-cta-btns">
-                <button className="btn btn-primary" onClick={() => window.print()} style={{ borderRadius: 10 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-                  Download Summary
+                <button 
+                  className="btn btn-primary" 
+                  onClick={handleDownloadSummary} 
+                  disabled={isDownloading}
+                  style={{ borderRadius: 10, minWidth: 180 }}
+                >
+                  {isDownloading ? (
+                    <motion.div
+                      style={{ width: 16, height: 16, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%' }}
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+                    />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+                      Download Summary
+                    </>
+                  )}
                 </button>
                 <Link to="/dashboard" className="btn btn-outline" style={{ borderRadius: 10 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>dashboard</span>
                   Back to Dashboard
                 </Link>
+                {(detected_language !== 'en-IN' && detected_language !== 'en') && (
+                  <button 
+                    className="btn btn-outline" 
+                    onClick={handleToggleLanguage}
+                    disabled={isTranslating}
+                    style={{ borderRadius: 10, border: '1px solid var(--primary)', minWidth: 150 }}
+                  >
+                    {isTranslating ? (
+                      <motion.div
+                        style={{ width: 14, height: 14, border: '2px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto' }}
+                        animate={{ rotate: 360 }}
+                        transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+                      />
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>language</span>
+                        {isNative ? 'Show English' : 'Show Native'}
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </motion.div>
           </div>
@@ -290,7 +415,7 @@ export default function AIAnalysis() {
               </h3>
               {nearby_offices.length > 0 ? nearby_offices.map((office, idx) => (
                 <div key={idx} className="contact-item">
-                  <span className="contact-label">{office.name || office}</span>
+                  <span className="contact-label">{isNative && translated ? displayData.offices[idx] : (office.name || office)}</span>
                   {office.lat && (
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${office.lat},${office.lng}`}
