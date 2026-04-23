@@ -5,14 +5,10 @@ python-multipart==0.0.26
 python-dotenv==1.2.2
 requests==2.33.1
 
-# OCR: EasyOCR with CPU-only PyTorch wheels to avoid large CUDA/NVIDIA downloads.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.11.0+cpu
-torchvision==0.26.0+cpu
-easyocr==1.7.2
+# OCR/PDF extraction. EasyOCR/PyTorch are intentionally not installed on the
+# Render web service because loading them exceeds the instance memory limit.
 Pillow>=10.0.0
 pymupdf==1.26.6
-numpy>=1.24.0,<2.0.0
 
 # Gemini SDK
 google-genai==1.0.0

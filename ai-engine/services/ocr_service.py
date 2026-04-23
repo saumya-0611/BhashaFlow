@@ -1,27 +1,25 @@
 """
 BhashaFlow AI Engine - OCR Service
 
-Uses EasyOCR to extract text from uploaded images and image-only PDFs.
-The reader is lazily initialized on first call to avoid slow startup.
+Uses fast PDF text extraction by default. EasyOCR is optional because loading
+PyTorch/EasyOCR can exceed small Render instance memory limits.
 """
 
 import io
 import logging
-from typing import Optional
+from typing import Any, Optional
 
-import easyocr
-import numpy as np
 from PIL import Image
 
-from .config import DEFAULT_OCR_LANGUAGES, MAX_PDF_PAGES, MAX_OCR_TEXT_CHARS, PDF_RENDER_SCALE
+from .config import DEFAULT_OCR_LANGUAGES, ENABLE_EASYOCR, MAX_PDF_PAGES, MAX_OCR_TEXT_CHARS, PDF_RENDER_SCALE
 
 logger = logging.getLogger(__name__)
 
-_reader: Optional[easyocr.Reader] = None
+_reader: Optional[Any] = None
 _loaded_languages: list[str] = []
 
 
-def _get_reader(languages: list[str]) -> easyocr.Reader:
+def _get_reader(languages: list[str]) -> Any:
     """
     Return a cached EasyOCR reader, reinitializing only if the
     requested language set has changed.
@@ -30,11 +28,40 @@ def _get_reader(languages: list[str]) -> easyocr.Reader:
 
     if _reader is None or set(languages) != set(_loaded_languages):
         logger.info("Initializing EasyOCR reader with languages: %s", languages)
+        import easyocr
+
         _reader = easyocr.Reader(languages, gpu=False, verbose=False)
         _loaded_languages = list(languages)
         logger.info("EasyOCR reader ready.")
 
     return _reader
+
+
+def _extract_pdf_text(pdf_bytes: bytes) -> str:
+    try:
+        import fitz
+    except ImportError as exc:
+        raise RuntimeError("PDF text extraction requires PyMuPDF. Install pymupdf in requirements.txt.") from exc
+
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except Exception as exc:
+        raise RuntimeError(f"Could not open PDF file: {exc}") from exc
+
+    text_parts: list[str] = []
+    try:
+        page_count = min(len(doc), MAX_PDF_PAGES)
+        for page_index in range(page_count):
+            page_text = doc.load_page(page_index).get_text("text").strip()
+            if page_text:
+                prefix = f"[Page {page_index + 1}] " if page_count > 1 else ""
+                text_parts.append(f"{prefix}{page_text}")
+            if sum(len(part) for part in text_parts) >= MAX_OCR_TEXT_CHARS:
+                break
+    finally:
+        doc.close()
+
+    return "\n\n".join(text_parts).strip()[:MAX_OCR_TEXT_CHARS]
 
 
 def _looks_like_pdf(file_bytes: bytes, filename: Optional[str], content_type: Optional[str]) -> bool:
@@ -124,6 +151,27 @@ def extract_text_from_image(
         languages = safe_languages or DEFAULT_OCR_LANGUAGES
 
     try:
+        if _looks_like_pdf(image_bytes, filename, content_type):
+            pdf_text = _extract_pdf_text(image_bytes)
+            if pdf_text:
+                logger.info("PDF text extracted without EasyOCR: chars=%d", len(pdf_text))
+                return {
+                    "extracted_text": pdf_text,
+                    "details": [],
+                    "page_count": min(pdf_text.count("[Page "), MAX_PDF_PAGES) or 1,
+                    "method": "pdf_text",
+                }
+
+            if not ENABLE_EASYOCR:
+                raise RuntimeError(
+                    "This PDF appears to be scanned/image-only. OCR is disabled on this Render plan to prevent service crashes."
+                )
+
+        if not ENABLE_EASYOCR:
+            raise RuntimeError(
+                "Image OCR is disabled on this Render plan to prevent service crashes. Upload a text-based PDF or type the complaint text."
+            )
+
         pages = _load_pages_from_upload(image_bytes, filename, content_type)
 
         try:
@@ -134,6 +182,8 @@ def extract_text_from_image(
 
         details = []
         text_parts = []
+
+        import numpy as np
 
         for page_number, image in enumerate(pages, start=1):
             image_np = np.array(image)
