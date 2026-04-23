@@ -1,325 +1,244 @@
-# 🇮🇳 BhashaFlow: Multilingual GenAI for Citizen Social Grievances
+# BhashaFlow
 
-**NIIT University B.Tech CSE Capstone Project**
+**Multilingual GenAI for Citizen Social Grievances**  
+NIIT University B.Tech CSE Capstone Project
 
----
+## Project Overview
 
-## 📖 Project Overview
+BhashaFlow helps citizens describe grievances in Indian languages, uses AI to extract and translate the complaint, classifies it into the right civic category, and routes the user to the relevant government portal with next steps.
 
-- **Problem:** Manual grievance handling causes severe delays, and language barriers prevent Indian citizens from efficiently reporting localized issues to the correct government authority.
-- **Objective:** Automatically capture, classify, summarize, and route social grievances submitted in various Indian languages to the appropriate government portal with actionable next steps.
-- **Approach:** OCR + Speech-to-Text → Sarvam AI Translation → Gemini LLM Classification & Summarization → Intelligent Portal Routing.
-- **Outcome:** Faster resolution times, seamless multilingual accessibility, a streamlined citizen dashboard, and an administrative interface for authorities.
+- **Input modes:** text, voice/audio, image OCR, and optional supporting proof.
+- **AI pipeline:** OCR / speech-to-text -> Sarvam translation -> Gemini classification and summary -> portal routing.
+- **User flow:** describe -> verify AI understanding -> add details -> review -> receive portal/action guidance.
+- **Admin flow:** view, filter, assign, and update grievance statuses.
 
----
+## Current Cloud Architecture
 
-## ✨ Key Features
+The production system is now distributed across three major providers so each workload can run where it fits best: Vercel for the static React client, Render for Node.js logic and Python AI services, and MongoDB Atlas for persistent metadata.
 
-### 🗣️ Multilingual Input (22+ Languages)
-Citizens can submit grievances in **any Indian language** using:
-- **Text Input** — Type in Hindi, Tamil, Bengali, Marathi, etc.
-- **Voice Input** — Speak directly; the AI transcribes and translates automatically.
-- **PDF Proof** — Optionally attach supporting documents in PDF format.
+```text
+Users
+  |
+  v
+Vercel Frontend (React + Vite SPA)
+  |
+  | HTTPS API calls
+  v
+Render Backend (Node.js + Express)
+  |
+  | Google OAuth callback + JWT issue
+  v
+Client session on Vercel
 
-### 🤖 AI-Powered Analysis Pipeline
-1. **Text Extraction** — OCR (EasyOCR) for images, Sarvam AI STT for audio.
-2. **Translation** — Sarvam AI translates all inputs to English for LLM processing.
-3. **Classification** — Google Gemini categorizes the grievance into one of **29 hyper-granular categories** (e.g., `cybercrime`, `banking`, `railways`, `passport`, `food_safety`).
-4. **Priority Detection** — AI assigns `low`, `medium`, `high`, or `critical` priority based on urgency rules.
-5. **Verification** — The citizen is shown the AI's understanding and can confirm or reject it.
+Render Backend
+  |
+  | AI_ENGINE_URL / process-grievance-full
+  v
+Render AI Engine (FastAPI + Python)
+  |
+  | OCR, STT, translation, LLM analysis
+  v
+Gemini + Sarvam APIs
 
-### 🏛️ Intelligent Government Portal Routing
-Each grievance is automatically mapped to **the exact relevant government portal** with:
-- Direct clickable portal links
-- Helpline numbers
-- Step-by-step filing procedures
-- Expected resolution timelines
-
-The system covers **40+ Indian government portals** across these categories:
-
-| Category | Portal(s) |
-|---|---|
-| Cybercrime | National Cyber Crime Portal (`cybercrime.gov.in`) |
-| Telecom Fraud | Sanchar Saathi |
-| Human Rights | NHRC |
-| Corruption | Lokpal of India |
-| Consumer Rights | National Consumer Helpline, E-Daakhil |
-| Banking | RBI Complaint Management System |
-| Stock Market | SEBI SCORES |
-| Insurance | IRDAI Bima Bharosa |
-| Telecom | TRAI, TDSAT |
-| Railways | Rail Madad |
-| Airlines | AirSewa |
-| Road Transport | Parivahan |
-| Real Estate | RERA |
-| Sanitation | Swachhata Platform |
-| Food Safety | FSSAI |
-| Medicines | CDSCO |
-| Health Schemes | Ayushman Bharat |
-| Environment | CPCB |
-| Aadhaar | UIDAI |
-| Passport | Passport Seva |
-| Income Tax | Income Tax e-Nivaran |
-| Provident Fund | EPFO Grievance |
-| Pensions | Pension Portal |
-| Postal Services | India Post |
-| RTI | RTI Online |
-| Electricity/Water | State-specific portals (Delhi Jal Board, MSEDCL, etc.) |
-| National General | CPGRAMS, DARPG, PMO, DPG |
-| State General | Delhi PGMS, UP Jansunwai, Maharashtra Aaple Sarkar, AP PGRS |
-
-### 🔐 Authentication & Security
-- **Email/Password** login with bcrypt hashing
-- **Google OAuth 2.0** single sign-on
-- **Forgot Password** flow with secure email-based reset tokens (1-hour expiry)
-- **JWT-based** session management with protected routes
-- **Role-based access** — Citizen vs Admin dashboards
-
-### 📊 Admin Dashboard
-- View and manage all submitted grievances
-- Filter by status, category, and priority
-- Update grievance status (pending → in_progress → resolved → closed)
-- Assign grievances to specific teams
-
----
-
-## 🛠️ Tech Stack & Architecture
-
-This project uses a **microservices architecture**, fully containerized with Docker.
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
-│   Frontend   │────▶│   Backend    │────▶│    AI Engine      │
-│  React/Vite  │     │  Express.js  │     │  FastAPI/Python   │
-│  Port 3000   │     │  Port 5000   │     │  Port 8000        │
-└──────────────┘     └──────┬───────┘     └────────┬──────────┘
-                            │                      │
-                     ┌──────▼───────┐        ┌─────▼──────────┐
-                     │  MongoDB     │        │  Sarvam AI     │
-                     │  Atlas       │        │  Google Gemini  │
-                     └──────────────┘        └────────────────┘
+Render Backend
+  |
+  v
+MongoDB Atlas
 ```
 
-### 1. Frontend (Port `3000`)
-- **Framework:** React.js 18 + Vite (Node 20)
-- **Animations:** Framer Motion
-- **Styling:** Vanilla CSS with design tokens
-- **Key Pages:**
-  - `CitizenAuth` — Login, Register, Google OAuth, Forgot Password
-  - `SubmitGrievance` — Text/Voice input + optional PDF proof (Step 1)
-  - `VerifyGrievance` — AI understanding confirmation (Step 2)
-  - `GrievanceForm` — Location and contact details (Step 3)
-  - `ReviewGrievance` — Full summary review before final submission (Step 4)
-  - `AIAnalysis` — AI results, portal links, procedure steps, helplines (Step 5)
-  - `Dashboard` — Citizen's grievance history and status tracking
-  - `AdminDashboard` — Admin management interface
-  - `ResetPassword` — Secure token-based password recovery
-- **Shared Components:**
-  - `StepIndicator` — Consistent 4-step progress bar (Describe → Verify → Details → Review) shown across all grievance flow pages
-  - `DashboardLayout` — Sidebar navigation wrapper
+### Request Flow
 
-### 2. Backend API (Port `5000`)
-- **Framework:** Node.js + Express.js (Node 20)
-- **Database:** MongoDB Atlas via Mongoose
-- **Authentication:** JWT + bcrypt + Google OAuth 2.0
-- **File Uploads:** Multer
-- **Email:** Nodemailer (Gmail SMTP) for password resets and follow-ups
-- **Cron Jobs:** Automated follow-up emails for unresolved grievances
-- **Key Models:**
-  - `User` — Citizen & admin accounts (with password reset token support)
-  - `Grievance` — Core grievance record with 29-category enum validation
-  - `AiAnalysis` — LLM output (summary, keywords, confidence score)
-  - `StatusUpdate` — Audit trail of status changes
-  - `TrainingData` — Confirmed grievances for future model improvement
-- **Portal Intelligence:** `portalData.js` contains a comprehensive directory of 40+ government portals with a `getPortalsForCategory(category, state)` helper function for intelligent routing.
+1. Users open the Vercel-hosted frontend.
+2. React calls the Render Node.js backend through the build-time `VITE_BACKEND_URL`.
+3. The backend handles email/password auth, Google OAuth, and JWT issuance.
+4. When a grievance is submitted, the backend stores a pending record and forwards media/text to the Render FastAPI AI engine.
+5. The AI engine calls EasyOCR, Sarvam, and Gemini as needed, then returns structured analysis.
+6. The backend stores metadata and AI output in MongoDB Atlas and returns verification/routing data to the frontend.
 
-### 3. AI Engine (Port `8000`)
-- **Framework:** Python 3.11 + FastAPI
-- **Services:**
-  - `gemini_service.py` — Google Gemini 3 Flash for structured classification (Pydantic response schema)
-  - `translate_service.py` — Sarvam AI for Indian language → English translation
-  - `speech_service.py` — Sarvam AI for Speech-to-Text transcription
-  - `ocr_service.py` — EasyOCR + Gemini Vision for handwritten text extraction
-  - `grievance_service.py` — Orchestrates the full pipeline (extract → translate → classify → return)
-- **Resilience:** Exponential backoff retries for Gemini API rate limits, graceful fallback when quota is exhausted
+## Component Notes
 
-### 4. DevOps & CI/CD
-- **Containerization:** Docker & Docker Compose (3 services)
-- **Pipeline:** Jenkins (with Docker Socket)
-- **Integration:** GitHub Webhooks via Ngrok
+### Frontend: Vercel
 
----
+- React 18 + Vite single page app.
+- `frontend/vercel.json` rewrites all routes to `index.html`, so React Router works on refresh and direct links.
+- `VITE_BACKEND_URL` is injected during build/deploy so production talks to Render instead of `localhost`.
+- Docker local builds also pass `VITE_BACKEND_URL` as a build arg.
 
-## 🔄 Grievance Processing Flow
+### Backend: Render Node.js Service
 
-```
-Step 1: DESCRIBE ───────────────────────────────────────────────────────
-  Citizen types or speaks their grievance + attaches optional PDF proof
-  React sends input to /api/grievance/ingest
-  Backend forwards to AI Engine → Extract text → Translate → Classify
-  Returns: title, summary, category, priority, keywords, confidence
+- Express API with JWT auth, Google OAuth, grievance routes, admin routes, uploads, and scheduled follow-up emails.
+- CORS allows the local frontend and the live Vercel origin: `https://bhasha-flow.vercel.app`.
+- Uses `process.env.PORT || 5000`, which is required for Render port binding.
+- Reads `AI_ENGINE_URL` from the environment to call the FastAPI engine. Keep this value as a clean base URL without a trailing slash to avoid double-slash request paths.
+- Provides `GET /` as a lightweight health route for cloud checks and uptime pings.
 
-Step 2: VERIFY ────────────────────────────────────────────────────────
-  Citizen sees AI's understanding in their own language
-  Confirms (Yes) or rejects (No → re-describe)
+### AI Engine: Render FastAPI Service
 
-Step 3: DETAILS ───────────────────────────────────────────────────────
-  Citizen fills in personal & location details
-  (Name, phone, state, district, pincode, address, landmark)
+- Python 3.11 + FastAPI service for OCR, translation, speech, and grievance processing.
+- `GET /` and `HEAD /` are both supported so Render and UptimeRobot checks receive `200 OK` instead of `405 Method Not Allowed`.
+- `WEB_CONCURRENCY` is configured in Render for the free-tier memory budget while running EasyOCR/Gemini workloads.
+- Main backend integration endpoint: `POST /process-grievance-full`.
 
-Step 4: REVIEW ────────────────────────────────────────────────────────
-  Citizen sees a full summary of everything entered:
-    → Original grievance text
-    → AI-detected category, priority, and keywords
-    → All personal & location details
-  Can go back to edit, or press "Confirm & Submit"
+### Data and External Services
 
-Step 5: AI RESULT ─────────────────────────────────────────────────────
-  After confirmation, backend maps category + state → portals
-  Citizen sees:
-    → Exact government portal links to file complaint
-    → Helpline numbers
-    → Step-by-step procedure guidelines
-    → Expected resolution timeline
-    → Nearby offices (with Google Maps links)
-    → Option to download PDF summary
+- MongoDB Atlas stores users, grievances, AI analysis, status updates, and training data.
+- Gemini handles structured classification/summarization.
+- Sarvam handles translation, speech-to-text, and text-to-speech services.
+- Secrets live in Render/Vercel environment variables and Jenkins credentials, not in source control.
+
+## Cross-Service Connectivity
+
+| Connection Path | Security Method | Implementation |
+|---|---|---|
+| Vercel -> Render Backend | CORS whitelist | `app.use(cors({ origin: [...] }))` includes the Vercel domain |
+| Google -> Render Backend | OAuth redirect allowlist | Google Cloud Console authorized redirect URI points to the Render backend callback |
+| Render Backend -> AI Engine | Service URL env var | `AI_ENGINE_URL` is configured in Render and Docker Compose |
+| Cloud -> External APIs | API keys | Render/Vercel env variables and Jenkins credentials |
+| UptimeRobot -> Render services | Health endpoints | `GET /` on Node.js, `GET/HEAD /` on FastAPI |
+
+## DevOps and CI/CD
+
+### Previous Pipeline
+
+```text
+Git push -> Jenkins local build -> Docker build -> Ngrok tunnel
 ```
 
-> All 4 citizen-facing steps display a **shared step indicator** bar at the top showing progress through: Describe → Verify → Details → Review.
+### Current Pipeline
 
----
+```text
+Git push -> GitHub webhook -> Render and Vercel parallel builds
+         -> automated health checks -> zero-downtime service swap
+```
 
-## 🚀 Local Development Setup
+Jenkins now acts as the **pre-flight gatekeeper**. It still builds and runs the Docker stack locally through `docker-compose.yml` plus `docker-compose.ci.yml`, but its purpose is to catch container, syntax, dependency, and integration failures before the code reaches Render/Vercel.
+
+CI port mapping:
+
+| Service | Local Dev | Jenkins CI |
+|---|---:|---:|
+| Frontend | 3000 | 4000 |
+| Backend | 5000 | 6000 |
+| AI Engine | 8000 | 9000 |
+
+## Stability
+
+Render free-tier services can sleep after inactivity. To reduce cold-start problems:
+
+- UptimeRobot pings the `/` route of both Render services every 5 minutes.
+- Node.js returns a lightweight JSON response from `GET /`.
+- FastAPI supports both `GET /` and `HEAD /`, avoiding expensive AI work during health checks.
+- AI concurrency is limited with `WEB_CONCURRENCY` in Render to fit the 512 MB free-tier memory profile.
+
+## Key Features
+
+- Multilingual grievance submission across Indian languages.
+- Text, audio, and image-based complaint intake.
+- Google OAuth and email/password authentication.
+- Forgot-password flow with secure email reset tokens.
+- AI verification step before final submission.
+- Category, priority, summary, keyword, and portal recommendation output.
+- Citizen dashboard with grievance history and status.
+- Admin dashboard for filtering, assignment, and status updates.
+- PDF summary generation support.
+
+## Local Development
 
 ### Prerequisites
-1. [Git](https://git-scm.com/downloads)
-2. [Docker Desktop](https://www.docker.com/products/docker-desktop/) (must be running)
-3. VS Code or any code editor
 
-### Step 1: Clone & Configure
+- Git
+- Docker Desktop
+- VS Code or another editor
+
+### Configure Environment
+
 ```bash
 git clone https://github.com/saumya-0611/BhashaFlow.git
 cd BhashaFlow
 cp .env.example .env
 ```
 
-Edit `.env` and fill in your actual credentials:
-```env
-# MongoDB Atlas connection string
-MONGO_URI=<your_mongo_uri>
+Fill in `.env`:
 
-# JWT secret for token signing
+```env
+MONGO_URI=<your_mongo_uri>
 JWT_SECRET=<your_jwt_secret>
 
-# Gmail SMTP for emails (use App Password, not regular password)
 GMAIL_USER=<your_gmail>
 GMAIL_PASS=<your_gmail_app_password>
+TECH_LEAD_EMAIL=<tech_lead_email>
 
-# AI Engine API keys
 SARVAM_API_KEY=<your_sarvam_key>
 GEMINI_API_KEY=<your_gemini_key>
 GEMINI_MODEL=gemini-3-flash-preview
 
-# Google OAuth credentials
 GOOGLE_CLIENT_ID=<your_google_client_id>
 GOOGLE_CLIENT_SECRET=<your_google_client_secret>
 VITE_GOOGLE_CLIENT_ID=<same_as_GOOGLE_CLIENT_ID>
 
-# URLs
-VITE_BACKEND_URL=http://localhost:5000
 FRONTEND_URL=http://localhost:3000
+BACKEND_URL=http://localhost:5000
+VITE_BACKEND_URL=http://localhost:5000
 ```
 
-### Step 2: Build & Start
+### Run Locally
+
 ```bash
 docker compose up --build
 ```
-> First run takes 5-10 minutes to download ML libraries. Subsequent runs are near-instant.
 
-### Step 3: Access
 | Service | URL |
 |---|---|
-| Frontend | http://localhost:3000 |
-| Backend API | http://localhost:5000 |
-| AI Engine | http://localhost:8000 |
+| Frontend | `http://localhost:3000` |
+| Backend API | `http://localhost:5000` |
+| AI Engine | `http://localhost:8000` |
 
-### When to Rebuild
-| Change Made | Action Needed |
-|---|---|
-| Frontend code (`.jsx`, `.css`) | `docker compose up --build` (code is baked into image) |
-| Backend code (`.js`) | Restart picks up changes automatically via Nodemon |
-| AI Engine code (`.py`) | `docker compose up --build` (Pydantic schema changes need rebuild) |
-| `.env` changes | `docker compose down` then `docker compose up` |
-| New npm/pip dependency | `docker compose up --build` |
+Use `docker compose up --build` after code changes, dependency changes, or `.env` changes because the app code is baked into the Docker images.
 
----
+## Project Structure
 
-## 📁 Project Structure
-
-```
+```text
 BhashaFlow/
-├── frontend/                  # React + Vite frontend
-│   └── src/
-│       ├── pages/             # All page components
-│       │   ├── SubmitGrievance.jsx   # Step 1: Text/Voice + PDF
-│       │   ├── VerifyGrievance.jsx   # Step 2: AI confirmation
-│       │   ├── GrievanceForm.jsx     # Step 3: Location details
-│       │   ├── ReviewGrievance.jsx   # Step 4: Review & confirm
-│       │   ├── AIAnalysis.jsx        # Step 5: Portal results
-│       │   └── ...                   # Dashboard, Auth, Admin, etc.
-│       ├── components/        # Shared components
-│       │   ├── DashboardLayout.jsx   # Sidebar navigation wrapper
-│       │   └── StepIndicator.jsx     # 4-step progress bar
-│       └── utils/             # API client, auth guards
-├── backend/                   # Node.js + Express backend
-│   ├── models/                # Mongoose schemas (User, Grievance, etc.)
-│   ├── routes/                # Express route handlers
-│   │   ├── authRoutes.js      # Login, register, forgot/reset password
-│   │   ├── googleAuthRoutes.js # OAuth 2.0 flow
-│   │   ├── grievanceRoutes.js # Ingest, confirm, submit, status
-│   │   └── adminRoutes.js     # Admin management endpoints
-│   ├── middleware/             # JWT auth middleware
-│   └── utils/
-│       ├── portalData.js      # 40+ government portals directory
-│       ├── mailer.js          # Email utilities (reset, follow-up)
-│       └── cronJobs.js        # Scheduled follow-up jobs
-├── ai-engine/                 # Python + FastAPI AI service
-│   ├── main.py                # FastAPI app + route definitions
-│   └── services/
-│       ├── gemini_service.py  # Gemini LLM analysis (29 categories)
-│       ├── grievance_service.py # Full processing pipeline
-│       ├── translate_service.py # Sarvam AI translation
-│       ├── speech_service.py  # Sarvam AI speech-to-text
-│       └── ocr_service.py     # EasyOCR + Gemini Vision
-├── docker-compose.yml         # Development orchestration
-├── docker-compose.ci.yml      # CI/CD orchestration
-├── Jenkinsfile                # CI/CD pipeline definition
-└── .env.example               # Environment variable template
+|-- frontend/                  React + Vite frontend
+|   |-- vercel.json            SPA rewrite config for Vercel
+|   |-- Dockerfile             Build-time Vite env injection
+|   `-- src/
+|       |-- pages/             Citizen, admin, auth, and grievance pages
+|       |-- components/        Shared UI components
+|       `-- utils/api.js       Central Axios client
+|-- backend/                   Node.js + Express backend
+|   |-- server.js              App bootstrap, CORS, health check, routes
+|   |-- routes/                Auth, Google OAuth, grievance, admin routes
+|   |-- models/                Mongoose schemas
+|   `-- utils/                 Portal data, mailer, cron jobs
+|-- ai-engine/                 FastAPI AI service
+|   |-- main.py                Health routes and AI endpoints
+|   `-- services/              Gemini, Sarvam, OCR, speech, grievance logic
+|-- docker-compose.yml         Local development stack
+|-- docker-compose.ci.yml      Jenkins CI override
+|-- Jenkinsfile                Docker pre-flight CI pipeline
+`-- .env.example               Environment variable template
 ```
 
----
+## Troubleshooting
 
-## ⚠️ Troubleshooting
-
-| Issue | Solution |
+| Issue | Fix |
 |---|---|
-| `Port is already allocated` | Stop conflicting services or change ports in `docker-compose.yml` |
-| `Module Not Found` | Run `docker compose up --build` to install new dependencies |
-| `category is not a valid enum` | Ensure all 3 services (Gemini schema, Mongoose model, portalData) share the same category list |
-| Forgot Password email not sent | Verify `GMAIL_USER` and `GMAIL_PASS` in `.env` (use Google App Password) |
-| AI returns `other` for everything | Check `GEMINI_API_KEY` is valid and quota is not exhausted |
+| React route refresh returns 404 on Vercel | Confirm `frontend/vercel.json` is deployed with the SPA rewrite |
+| Frontend calls localhost in production | Check `VITE_BACKEND_URL` in Vercel and rebuild |
+| Backend fails to start on Render | Confirm it uses `process.env.PORT` and required env vars are set |
+| AI call has a double slash in URL | Set `AI_ENGINE_URL` without a trailing slash |
+| FastAPI health check returns 405 | Confirm `@app.head("/")` is deployed |
+| Render service sleeps | Confirm UptimeRobot is pinging `/` every 5 minutes |
+| Category enum errors | Keep Gemini schema, Mongoose enum, and portal data categories aligned |
 
----
+## Team
 
-## 👥 Team & Roles
+- **Tech Lead / DevOps:** Saumya Srivastava - CI/CD, Docker, deployment, cross-service integration.
+- **Frontend:** `frontend/`
+- **Backend:** `backend/`
+- **AI/ML:** `ai-engine/`
 
-- **Tech Lead / DevOps:** Saumya Srivastava — CI/CD pipeline, Docker architecture, cross-service integration
-- **Frontend Developer:** — `frontend/` directory
-- **Backend Developer:** — `backend/` directory
-- **AI/ML Engineer:** — `ai-engine/` directory
-
----
-
-## 📄 License
+## License
 
 This project is developed as part of the NIIT University B.Tech CSE Capstone Program.
