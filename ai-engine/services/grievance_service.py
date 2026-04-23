@@ -14,7 +14,7 @@ from typing import Optional
 
 from fastapi import File, Form, HTTPException, UploadFile
 
-from .config import MAX_AUDIO_FILE_BYTES, MAX_OCR_FILE_BYTES, MAX_TEXT_CHARS
+from .config import GEMINI_ENABLE_OCR_SCRIPT_DETECTION, MAX_AUDIO_FILE_BYTES, MAX_OCR_FILE_BYTES, MAX_TEXT_CHARS
 from .gemini_service import analyze_with_gemini, analyze_with_gemini_fix_ocr, identify_scripts_with_gemini
 from .ocr_service import extract_text_from_image, get_preview_image_bytes
 from .speech_service import speech_to_text
@@ -96,22 +96,29 @@ async def process_grievance_full(
         
         # Step A: Identify scripts via Gemini Vision only when explicitly enabled.
         # Default stays en+hi to preserve the daily Gemini budget and avoid extra
-        # failure points on Render.
-        preview_bytes = get_preview_image_bytes(
-            image_bytes,
-            filename=image.filename,
-            content_type=image.content_type,
-        )
-        identified_langs = identify_scripts_with_gemini(preview_bytes)
-        logger.info(f"Gemini identified scripts: {identified_langs}")
+        # PDF rendering/model-loading work on Render.
+        if GEMINI_ENABLE_OCR_SCRIPT_DETECTION:
+            preview_bytes = get_preview_image_bytes(
+                image_bytes,
+                filename=image.filename,
+                content_type=image.content_type,
+            )
+            identified_langs = identify_scripts_with_gemini(preview_bytes)
+            logger.info("Gemini identified scripts: %s", identified_langs)
+        else:
+            identified_langs = ["en", "hi"]
+            logger.info("OCR scripts defaulted: %s", identified_langs)
 
         # Step B: Run OCR with dynamic scripts
-        ocr_result = extract_text_from_image(
-            image_bytes,
-            identified_langs,
-            filename=image.filename,
-            content_type=image.content_type,
-        )
+        try:
+            ocr_result = extract_text_from_image(
+                image_bytes,
+                identified_langs,
+                filename=image.filename,
+                content_type=image.content_type,
+            )
+        except RuntimeError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
         raw_ocr_text = ocr_result["extracted_text"]
 
         # Step C: Dual Validation (Gemini fixes the raw text)

@@ -20,10 +20,7 @@ COPY requirements.txt .
 
 RUN pip install --upgrade pip
 
-# This install will be heavy (approx 2GB+). 
-# It may take 5-10 minutes in Jenkins.
 RUN pip install --no-cache-dir -r requirements.txt
-RUN mkdir -p /app/.EasyOCR && python -c "import easyocr; easyocr.Reader(['en','hi'], gpu=False, verbose=False)"
 
 COPY . .
 EXPOSE 8000

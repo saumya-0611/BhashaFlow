@@ -73,6 +73,17 @@ async function processIngest(req, res, inputType) {
         { headers: formData.getHeaders(), timeout: 180000 }
       );
     } catch (aiErr) {
+      if (aiErr.response?.status && aiErr.response.status < 500) {
+        console.warn('AI engine rejected ingest:', aiErr.response.data || aiErr.message);
+        grievance.status = 'pending';
+        await grievance.save();
+        return res.status(aiErr.response.status).json({
+          message: aiErr.response.data?.detail || 'The uploaded input could not be processed.',
+          grievance_id: grievance._id,
+          error: 'AI_ENGINE_REJECTED_INPUT',
+        });
+      }
+
       console.error('AI engine unavailable during ingest:', aiErr.message);
       grievance.status = 'pending';
       await grievance.save();

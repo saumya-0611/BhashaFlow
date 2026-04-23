@@ -87,6 +87,7 @@ BCP47_TO_SHORT = {v: k for k, v in LANG_CODES.items()}
 # Default subset of languages for EasyOCR
 # (more languages = more memory; keep this tight)
 DEFAULT_OCR_LANGUAGES = ["en", "hi"]
+ENABLE_EASYOCR = os.getenv("ENABLE_EASYOCR", "false").lower() == "true"
 MAX_OCR_FILE_BYTES = int(os.getenv("MAX_OCR_FILE_BYTES", str(4 * 1024 * 1024)))
 MAX_AUDIO_FILE_BYTES = int(os.getenv("MAX_AUDIO_FILE_BYTES", str(4 * 1024 * 1024)))
 MAX_TEXT_CHARS = int(os.getenv("MAX_TEXT_CHARS", "4000"))
