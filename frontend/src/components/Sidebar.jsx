@@ -1,8 +1,36 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 import './Sidebar.css';
 
 export default function Sidebar({ isAdmin = false }) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const isFlowPath = (path) =>
+    path.startsWith('/verify/') || path.startsWith('/grievance-form/');
+
+  const getFlowGrievanceId = () => {
+    const match = location.pathname.match(/^\/(verify|grievance-form)\/([^/]+)/);
+    return match ? match[2] : null;
+  };
+
+  const handleNavClick = async (e, path) => {
+    if (!isFlowPath(location.pathname) || isFlowPath(path)) return;
+
+    e.preventDefault();
+    const shouldLeave = window.confirm('If you leave now, your in-progress grievance will be deleted. Continue?');
+    if (!shouldLeave) return;
+
+    const grievanceId = getFlowGrievanceId();
+    try {
+      if (grievanceId) {
+        await api.delete(`/api/grievance/${grievanceId}`);
+      }
+    } catch {
+      // best effort
+    }
+    navigate(path);
+  };
 
   const citizenLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
@@ -47,6 +75,7 @@ export default function Sidebar({ isAdmin = false }) {
               key={link.name} 
               to={link.path} 
               className={`nav-item ${isActive ? 'active' : ''}`}
+              onClick={(e) => handleNavClick(e, link.path)}
             >
               <span className={`material-symbols-outlined ${isActive ? 'filled' : ''}`}>
                 {link.icon}
@@ -59,7 +88,7 @@ export default function Sidebar({ isAdmin = false }) {
         <div className="nav-divider"></div>
         
         {commonLinks.map((link) => (
-          <Link key={link.name} to={link.path} className="nav-item">
+          <Link key={link.name} to={link.path} className="nav-item" onClick={(e) => handleNavClick(e, link.path)}>
             <span className="material-symbols-outlined">{link.icon}</span>
             {link.name}
           </Link>

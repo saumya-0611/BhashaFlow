@@ -290,7 +290,14 @@ router.post('/submit', auth, async (req, res) => {
 // Returns all grievances for the logged-in user.
 router.get('/my', auth, async (req, res) => {
   try {
-    const grievances = await Grievance.find({ user_id: req.user.userId })
+    const grievances = await Grievance.find({
+      user_id: req.user.userId,
+      status: { $nin: ['pending', 'processing'] },
+      state: { $exists: true, $ne: '' },
+      district: { $exists: true, $ne: '' },
+      pincode: { $exists: true, $ne: '' },
+      address: { $exists: true, $ne: '' },
+    })
       .sort({ submitted_at: -1 });
 
     // Populate with AI analysis summaries
@@ -308,6 +315,42 @@ router.get('/my', auth, async (req, res) => {
   } catch (error) {
     console.error('❌ My grievances error:', error.message);
     res.status(500).json({ message: 'Failed to fetch grievances', error: error.message });
+  }
+});
+
+// ─── DELETE /api/grievance/:id ──────────────────────────────────
+// Deletes only incomplete grievances when user abandons flow.
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance) {
+      return res.status(404).json({ message: 'Grievance not found' });
+    }
+
+    if (grievance.user_id.toString() !== req.user.userId) {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const hasSubmissionDetails = Boolean(
+      grievance.state?.trim() &&
+      grievance.district?.trim() &&
+      grievance.pincode?.trim() &&
+      grievance.address?.trim()
+    );
+
+    if (hasSubmissionDetails || ['in_progress', 'resolved', 'closed'].includes(grievance.status)) {
+      return res.status(400).json({ message: 'Cannot delete a submitted grievance' });
+    }
+
+    await AiAnalysis.deleteMany({ grievance_id: grievance._id });
+    await StatusUpdate.deleteMany({ grievance_id: grievance._id });
+    await TrainingData.deleteMany({ original_text: grievance.original_text });
+    await grievance.deleteOne();
+
+    return res.status(200).json({ success: true, message: 'Grievance discarded' });
+  } catch (error) {
+    console.error('❌ Delete grievance error:', error.message);
+    return res.status(500).json({ message: 'Failed to delete grievance', error: error.message });
   }
 });
 

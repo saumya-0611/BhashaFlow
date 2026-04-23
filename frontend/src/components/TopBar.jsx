@@ -1,8 +1,36 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 import './TopBar.css';
 
 export default function TopBar() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const isFlowPath = (path) =>
+    path.startsWith('/verify/') || path.startsWith('/grievance-form/');
+
+  const getFlowGrievanceId = () => {
+    const match = location.pathname.match(/^\/(verify|grievance-form)\/([^/]+)/);
+    return match ? match[2] : null;
+  };
+
+  const handleBreadcrumbClick = async (e, path) => {
+    if (!isFlowPath(location.pathname) || isFlowPath(path)) return;
+
+    e.preventDefault();
+    const shouldLeave = window.confirm('If you leave now, your in-progress grievance will be deleted. Continue?');
+    if (!shouldLeave) return;
+
+    const grievanceId = getFlowGrievanceId();
+    try {
+      if (grievanceId) {
+        await api.delete(`/api/grievance/${grievanceId}`);
+      }
+    } catch {
+      // best effort
+    }
+    navigate(path);
+  };
   
   // Minimal breadcrumbs based on paths
   const getBreadcrumbs = () => {
@@ -25,7 +53,7 @@ export default function TopBar() {
           <span key={crumb.name} className="crumb-wrap">
             {i > 0 && <span className="material-symbols-outlined separator">chevron_right</span>}
             {crumb.path ? (
-              <Link to={crumb.path} className="crumb link">{crumb.name}</Link>
+              <Link to={crumb.path} className="crumb link" onClick={(e) => handleBreadcrumbClick(e, crumb.path)}>{crumb.name}</Link>
             ) : (
               <span className="crumb current">{crumb.name}</span>
             )}
