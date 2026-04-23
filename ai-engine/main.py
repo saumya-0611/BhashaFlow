@@ -42,6 +42,7 @@ from services.speech_service import (
     speech_to_speech,
 )
 from services.grievance_service import process_grievance_full
+from services.gemini_service import locate_nearby_offices
 
 # ── Logging ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -461,3 +462,20 @@ async def process_grievance(
         "source_language_code": source_lang_code,
         "input_type": input_type,
     }
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  NEARBY OFFICES ENDPOINT
+# ═══════════════════════════════════════════════════════════════════
+
+@app.post("/nearby-offices")
+def nearby_offices_endpoint(
+    category: str = Form(...),
+    district: str = Form(...),
+    state: str = Form(...),
+):
+    """
+    Get 3-4 nearby offices and coordinates using Gemini based on category, district, state.
+    """
+    offices = locate_nearby_offices(category, district, state)
+    return {"success": True, "offices": offices}

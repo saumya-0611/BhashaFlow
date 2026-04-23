@@ -201,14 +201,19 @@ router.post('/submit', auth, async (req, res) => {
 
     let nearbyOffices = [];
     try {
-      const search = `${district} ${grievance.category || 'government office'}`;
-      const nom = await axios.get('https://nominatim.openstreetmap.org/search', {
-        params: { q: search, format: 'json', limit: 5, countrycodes: 'in' },
-        headers: { 'User-Agent': 'BhashaFlow/1.0' },
-        timeout: 10000,
+      const nomFormData = new FormData();
+      nomFormData.append('category', grievance.category || 'other');
+      nomFormData.append('district', district);
+      nomFormData.append('state', state);
+
+      const aiResponse = await axios.post(`${AI_ENGINE_URL}/nearby-offices`, nomFormData, {
+        headers: nomFormData.getHeaders(),
+        timeout: 20000
       });
-      nearbyOffices = nom.data.map(p => ({ name: p.display_name, lat: p.lat, lng: p.lon }));
-    } catch (e) { console.warn('Nominatim failed'); }
+      nearbyOffices = aiResponse.data.offices || [];
+    } catch (e) {
+      console.warn('AI Engine nearby offices failed:', e.message);
+    }
 
     const { portalLinks, procedureSteps, expectedResolutionDays } = getPortalsForCategory(grievance.category || 'other', state);
     grievance.portal_links = portalLinks;

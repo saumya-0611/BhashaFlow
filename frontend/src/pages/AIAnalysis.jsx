@@ -4,7 +4,21 @@ import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
 import { useGrievanceFlow } from '../context/GrievanceFlowContext';
 import api from '../utils/api';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import './AIAnalysis.css';
+
+// Fix Leaflet's default icon path issues in React
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+let DefaultIcon = L.icon({
+    iconUrl: icon,
+    shadowUrl: iconShadow,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -100,6 +114,24 @@ export default function AIAnalysis() {
       desc: p.helpline ? `Helpline: ${p.helpline}` : (p.desc || ''),
     }));
     return [{ name: portal_links.portal_name, url: portal_links.portal_url, desc: portal_links.helpline ? `Helpline: ${portal_links.helpline}` : '' }];
+  })();
+
+  const mapBounds = (() => {
+    if (!nearby_offices || nearby_offices.length === 0) return null;
+    const validOffices = nearby_offices.filter(o => o.lat != null && o.lng != null);
+    if (validOffices.length === 0) return null;
+    if (validOffices.length === 1) {
+      // If only one office, create a tiny bounding box around it so the map doesn't zoom in too much
+      const lat = parseFloat(validOffices[0].lat);
+      const lng = parseFloat(validOffices[0].lng);
+      return [ [lat - 0.01, lng - 0.01], [lat + 0.01, lng + 0.01] ];
+    }
+    const lats = validOffices.map(o => parseFloat(o.lat));
+    const lngs = validOffices.map(o => parseFloat(o.lng));
+    return [
+      [Math.min(...lats), Math.min(...lngs)],
+      [Math.max(...lats), Math.max(...lngs)],
+    ];
   })();
 
   return (
@@ -295,11 +327,27 @@ export default function AIAnalysis() {
                 <span className="material-symbols-outlined" style={{ color: 'var(--emerald)' }}>map</span>
                 Coverage Map
               </h3>
-              <div className="map-placeholder">
-                <span className="material-symbols-outlined">location_on</span>
-                <span>Interactive Map</span>
-                <span style={{ fontSize: 11, background: 'var(--surface-container-highest)', padding: '2px 8px', borderRadius: 4 }}>Region coverage</span>
-              </div>
+              {mapBounds ? (
+                <div style={{ height: '300px', width: '100%', borderRadius: '12px', overflow: 'hidden', marginTop: '12px' }}>
+                  <MapContainer bounds={mapBounds} scrollWheelZoom={true} style={{ height: '100%', width: '100%', zIndex: 0 }}>
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    {nearby_offices.filter(o => o.lat != null && o.lng != null).map((office, idx) => (
+                      <Marker key={idx} position={[parseFloat(office.lat), parseFloat(office.lng)]}>
+                        <Popup>{office.name}</Popup>
+                      </Marker>
+                    ))}
+                  </MapContainer>
+                </div>
+              ) : (
+                <div className="map-placeholder">
+                  <span className="material-symbols-outlined">location_on</span>
+                  <span>Interactive Map Available After Location Set</span>
+                  <span style={{ fontSize: 11, background: 'var(--surface-container-highest)', padding: '2px 8px', borderRadius: 4 }}>Region coverage</span>
+                </div>
+              )}
             </motion.div>
 
             {/* Eco badge */}

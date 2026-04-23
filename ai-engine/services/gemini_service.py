@@ -318,3 +318,43 @@ Example for hi-IN: 'kya yeh paani ki samasya hai?'"""
 
     logger.error("Gemini failed for all configured models - using fallback.")
     return _fallback(english_text)
+
+
+class OfficeLocation(BaseModel):
+    name: str = Field(description="Name of the government office")
+    lat: float = Field(description="Latitude (e.g. 28.4595)")
+    lng: float = Field(description="Longitude (e.g. 77.0266)")
+
+class NearbyOffices(BaseModel):
+    offices: list[OfficeLocation]
+
+def locate_nearby_offices(category: str, district: str, state: str) -> list[dict]:
+    """Ask Gemini to find 3 relevant offices and hallucinate approximate coordinates."""
+    if _client is None:
+        logger.warning("Gemini not available - returning empty offices.")
+        return []
+
+    prompt = f"""Identify 3 to 4 specific government offices, authorities, or centers in {district}, {state}, India that handle '{category}' grievances.
+Name them correctly and provide realistic approximate latitude and longitude coordinates for these specific offices within {district}.
+Return a list of exactly these offices."""
+
+    for model in _model_candidates():
+        try:
+            response = _client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=NearbyOffices,
+                    temperature=0.3,
+                ),
+            )
+            parsed: NearbyOffices = response.parsed
+            if parsed is None or not getattr(parsed, 'offices', None):
+                logger.warning("Gemini returned no valid offices.")
+                return []
+            return [{"name": o.name, "lat": o.lat, "lng": o.lng} for o in parsed.offices]
+        except Exception as e:
+            logger.warning("Gemini location fetch failed on %s: %s", model, e)
+    
+    return []
