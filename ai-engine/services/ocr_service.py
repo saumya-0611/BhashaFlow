@@ -1,7 +1,7 @@
 """
-BhashaFlow AI Engine — OCR Service
+BhashaFlow AI Engine - OCR Service
 
-Uses EasyOCR to extract text from images containing Indian language text.
+Uses EasyOCR to extract text from uploaded images and image-only PDFs.
 The reader is lazily initialized on first call to avoid slow startup.
 """
 
@@ -17,7 +17,9 @@ from .config import DEFAULT_OCR_LANGUAGES
 
 logger = logging.getLogger(__name__)
 
-# ── Module-level reader (lazy init) ──────────────────────────────
+MAX_PDF_PAGES = 5
+PDF_RENDER_SCALE = 2.0
+
 _reader: Optional[easyocr.Reader] = None
 _loaded_languages: list[str] = []
 
@@ -38,36 +40,121 @@ def _get_reader(languages: list[str]) -> easyocr.Reader:
     return _reader
 
 
-def extract_text_from_image(image_bytes: bytes, languages: Optional[list[str]] = None) -> dict:
+def _looks_like_pdf(file_bytes: bytes, filename: Optional[str], content_type: Optional[str]) -> bool:
+    lower_name = (filename or "").lower()
+    lower_type = (content_type or "").lower()
+    return (
+        file_bytes.startswith(b"%PDF")
+        or lower_name.endswith(".pdf")
+        or lower_type == "application/pdf"
+    )
+
+
+def _image_to_png_bytes(image: Image.Image) -> bytes:
+    out = io.BytesIO()
+    image.save(out, format="PNG")
+    return out.getvalue()
+
+
+def _render_pdf_pages(pdf_bytes: bytes) -> list[Image.Image]:
+    try:
+        import fitz
+    except ImportError as exc:
+        raise RuntimeError("PDF OCR requires PyMuPDF. Install pymupdf in requirements.txt.") from exc
+
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except Exception as exc:
+        raise RuntimeError(f"Could not open PDF file: {exc}") from exc
+
+    images: list[Image.Image] = []
+    try:
+        page_count = min(len(doc), MAX_PDF_PAGES)
+        matrix = fitz.Matrix(PDF_RENDER_SCALE, PDF_RENDER_SCALE)
+
+        for page_index in range(page_count):
+            page = doc.load_page(page_index)
+            pixmap = page.get_pixmap(matrix=matrix, alpha=False)
+            image = Image.open(io.BytesIO(pixmap.tobytes("png"))).convert("RGB")
+            images.append(image)
+    finally:
+        doc.close()
+
+    if not images:
+        raise RuntimeError("PDF has no readable pages.")
+
+    return images
+
+
+def _load_pages_from_upload(
+    file_bytes: bytes,
+    filename: Optional[str] = None,
+    content_type: Optional[str] = None,
+) -> list[Image.Image]:
+    if _looks_like_pdf(file_bytes, filename, content_type):
+        return _render_pdf_pages(file_bytes)
+
+    try:
+        return [Image.open(io.BytesIO(file_bytes)).convert("RGB")]
+    except Exception as exc:
+        raise RuntimeError(f"Unsupported or unreadable image/PDF file: {exc}") from exc
+
+
+def get_preview_image_bytes(
+    file_bytes: bytes,
+    filename: Optional[str] = None,
+    content_type: Optional[str] = None,
+) -> bytes:
+    """
+    Return a PNG preview of the first image/page for Gemini Vision script detection.
+    """
+    pages = _load_pages_from_upload(file_bytes, filename, content_type)
+    return _image_to_png_bytes(pages[0])
+
+
+def extract_text_from_image(
+    image_bytes: bytes,
+    languages: Optional[list[str]] = None,
+    filename: Optional[str] = None,
+    content_type: Optional[str] = None,
+) -> dict:
     if languages is None:
         languages = DEFAULT_OCR_LANGUAGES
 
     try:
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        image_np = np.array(image)
+        pages = _load_pages_from_upload(image_bytes, filename, content_type)
 
-        # Attempt to load the identified languages; fallback on compatibility errors
         try:
             reader = _get_reader(languages)
         except ValueError:
-            logger.warning(f"Compatibility error with {languages}. Falling back to ['en', 'hi'].")
+            logger.warning("Compatibility error with %s. Falling back to ['en', 'hi'].", languages)
             reader = _get_reader(["en", "hi"])
 
-        results = reader.readtext(image_np)
         details = []
         text_parts = []
 
-        for bbox, text, confidence in results:
-            details.append({
-                "text": text,
-                "confidence": round(float(confidence), 4),
-                "bbox": [[int(coord) for coord in point] for point in bbox],
-            })
-            text_parts.append(text)
+        for page_number, image in enumerate(pages, start=1):
+            image_np = np.array(image)
+            results = reader.readtext(image_np)
+
+            page_text_parts = []
+            for bbox, text, confidence in results:
+                details.append({
+                    "page": page_number,
+                    "text": text,
+                    "confidence": round(float(confidence), 4),
+                    "bbox": [[int(coord) for coord in point] for point in bbox],
+                })
+                page_text_parts.append(text)
+
+            page_text = " ".join(page_text_parts).strip()
+            if page_text:
+                text_parts.append(f"[Page {page_number}] {page_text}" if len(pages) > 1 else page_text)
 
         return {
-            "extracted_text": " ".join(text_parts).strip(),
+            "extracted_text": "\n\n".join(text_parts).strip(),
             "details": details,
+            "page_count": len(pages),
         }
     except Exception as e:
         logger.exception("OCR extraction failed")

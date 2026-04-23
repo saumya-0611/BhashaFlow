@@ -6,6 +6,7 @@ between Indian languages (22+ supported) and English.
 """
 
 import logging
+import re
 
 import requests
 
@@ -20,6 +21,8 @@ from .config import (
 )
 
 logger = logging.getLogger(__name__)
+
+MAX_TRANSLATE_CHARS = 900
 
 
 def _resolve_lang_code(code: str) -> str:
@@ -99,6 +102,70 @@ def translate_text(
         )
     except Exception as e:
         raise RuntimeError(f"Translation failed: {e}") from e
+
+
+def _split_for_translation(text: str, max_chars: int = MAX_TRANSLATE_CHARS) -> list[str]:
+    paragraphs = [part.strip() for part in re.split(r"\n{2,}", text) if part.strip()]
+    chunks: list[str] = []
+
+    for paragraph in paragraphs:
+        if len(paragraph) <= max_chars:
+            chunks.append(paragraph)
+            continue
+
+        sentences = re.split(r"(?<=[.!?।])\s+", paragraph)
+        current = ""
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if not sentence:
+                continue
+
+            if len(sentence) > max_chars:
+                if current:
+                    chunks.append(current)
+                    current = ""
+                chunks.extend(sentence[i:i + max_chars] for i in range(0, len(sentence), max_chars))
+                continue
+
+            candidate = f"{current} {sentence}".strip()
+            if len(candidate) > max_chars and current:
+                chunks.append(current)
+                current = sentence
+            else:
+                current = candidate
+
+        if current:
+            chunks.append(current)
+
+    return chunks or [text[:max_chars]]
+
+
+def translate_long_text(
+    text: str,
+    source_language_code: str = "auto",
+    target_language_code: str = "en-IN",
+) -> dict:
+    """
+    Translate longer OCR/STT text by sending Sarvam-safe chunks.
+    """
+    chunks = _split_for_translation(text)
+    translated_chunks: list[str] = []
+    detected_source = source_language_code
+
+    for chunk in chunks:
+        result = translate_text(
+            text=chunk,
+            source_language_code=source_language_code,
+            target_language_code=target_language_code,
+        )
+        translated_chunks.append(result["translated_text"])
+        if detected_source in {"auto", "unknown"}:
+            detected_source = result.get("source_language_code", detected_source)
+
+    return {
+        "translated_text": "\n\n".join(translated_chunks),
+        "source_language_code": detected_source,
+    }
 
 
 def get_language_name(code: str) -> str:

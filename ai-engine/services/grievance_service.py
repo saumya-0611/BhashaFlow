@@ -16,9 +16,9 @@ from fastapi import File, Form, HTTPException, UploadFile
 
 from .config import DEFAULT_OCR_LANGUAGES
 from .gemini_service import analyze_with_gemini, analyze_with_gemini_fix_ocr, identify_scripts_with_gemini
-from .ocr_service import extract_text_from_image
+from .ocr_service import extract_text_from_image, get_preview_image_bytes
 from .speech_service import speech_to_text
-from .translate_service import get_language_name, translate_text
+from .translate_service import get_language_name, translate_long_text
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ async def process_grievance_full(
     """
     Full grievance processing pipeline.
 
-    Priority: audio > image > text (matches existing /process-grievance logic).
+    Combines all provided inputs: audio, attachment OCR, and typed text.
 
     Returns the contract JSON the Node.js backend expects:
     {
@@ -49,6 +49,8 @@ async def process_grievance_full(
     input_type = ""
     ocr_raw_text = None
     stt_transcript = None
+    text_segments: list[str] = []
+    input_types: list[str] = []
 
     # ── STEP 1: Extract text from whichever input was provided ────────
     if audio is not None:
@@ -66,43 +68,68 @@ async def process_grievance_full(
         extracted_text = stt_result["transcript"]
         detected_language = stt_result.get("language_code", "unknown")
         stt_transcript = extracted_text
-        input_type = "audio"
+        text_segments.append(f"Voice complaint:\n{extracted_text}")
+        input_types.append("audio")
         logger.info("STT done: lang=%s, chars=%d", detected_language, len(extracted_text))
 
-    elif image is not None:
+    if image is not None:
         image_bytes = await image.read()
         if not image_bytes:
-            raise HTTPException(status_code=400, detail="Empty image file.")
+            raise HTTPException(status_code=400, detail="Empty attachment file.")
 
-        logger.info("OCR: Processing image '%s' (%d bytes)", image.filename, len(image_bytes))
+        logger.info(
+            "OCR: Processing attachment '%s' (%s, %d bytes)",
+            image.filename,
+            image.content_type,
+            len(image_bytes),
+        )
         
         # Step A: Identify scripts via Gemini Vision
-        identified_langs = identify_scripts_with_gemini(image_bytes)
+        preview_bytes = get_preview_image_bytes(
+            image_bytes,
+            filename=image.filename,
+            content_type=image.content_type,
+        )
+        identified_langs = identify_scripts_with_gemini(preview_bytes)
         logger.info(f"Gemini identified scripts: {identified_langs}")
 
         # Step B: Run OCR with dynamic scripts
-        ocr_result = extract_text_from_image(image_bytes, identified_langs)
+        ocr_result = extract_text_from_image(
+            image_bytes,
+            identified_langs,
+            filename=image.filename,
+            content_type=image.content_type,
+        )
         raw_ocr_text = ocr_result["extracted_text"]
 
         # Step C: Dual Validation (Gemini fixes the raw text)
         extracted_text = analyze_with_gemini_fix_ocr(raw_ocr_text, identified_langs)
         
         ocr_raw_text = raw_ocr_text  # Keep raw text for audit
-        detected_language = identified_langs[0] if identified_langs else "auto"
-        input_type = "image"
+        if detected_language in {"auto", "unknown"}:
+            detected_language = identified_langs[0] if identified_langs else "auto"
+        text_segments.append(f"Attachment OCR text:\n{extracted_text}")
+        input_types.append("attachment")
         logger.info("OCR & Dual Validation done: chars=%d", len(extracted_text))
 
-    elif text and text.strip():
-        extracted_text = text.strip()
-        detected_language = source_language_code
-        input_type = "text"
-        logger.info("Text input: chars=%d", len(extracted_text))
+    if text and text.strip():
+        typed_text = text.strip()
+        text_segments.append(f"Typed complaint:\n{typed_text}")
+        input_types.append("text")
+        if detected_language in {"auto", "unknown"}:
+            detected_language = source_language_code
+        logger.info("Text input: chars=%d", len(typed_text))
 
-    else:
+    if not text_segments:
         raise HTTPException(
             status_code=400,
             detail="Provide at least one of: text, image, or audio.",
         )
+
+    extracted_text = "\n\n".join(text_segments).strip()
+    input_type = "+".join(input_types)
+    if len(input_types) > 1:
+        detected_language = "auto"
 
     if not extracted_text:
         raise HTTPException(
@@ -113,7 +140,7 @@ async def process_grievance_full(
     # ── STEP 2: Translate to English via Sarvam ───────────────────────
     logger.info("Translating %d chars from '%s' to en-IN", len(extracted_text), detected_language)
     try:
-        translation = translate_text(
+        translation = translate_long_text(
             text=extracted_text,
             source_language_code=detected_language if detected_language != "auto" else "auto",
             target_language_code="en-IN",
