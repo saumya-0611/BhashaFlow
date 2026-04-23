@@ -4,28 +4,46 @@
 
 .step-indicator {
   display: flex;
-  align-items: center;
-  margin-bottom: 32px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 48px;
   gap: 0;
+  padding: 0 8px;
+  position: relative;
+}
+
+/* Background connector line */
+.step-indicator::before {
+  content: '';
+  position: absolute;
+  top: 17px;
+  left: 4%;
+  right: 4%;
+  height: 2px;
+  background: var(--outline-variant);
+  z-index: 0;
 }
 
 .step-item {
   display: flex;
+  flex-direction: column;
   align-items: center;
   position: relative;
   flex: 1;
+  z-index: 1;
 }
 
-.step-item:last-child { flex: 0; }
+.step-item:last-child { flex: 1; }
 
 /* Connector track */
 .step-connector {
-  flex: 1;
+  position: absolute;
+  top: 17px;
+  left: 50%;
+  width: calc(100% - 24px);
   height: 2px;
-  background: var(--outline-variant);
-  position: relative;
-  overflow: hidden;
-  margin: 0 4px;
+  background: transparent;
+  overflow: visible;
 }
 
 .step-connector-fill {
@@ -40,13 +58,13 @@
 
 /* Circle */
 .step-circle {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
   position: relative;
@@ -54,7 +72,8 @@
   border: 2px solid var(--outline-variant);
   color: var(--outline);
   background: var(--surface-container-lowest);
-  z-index: 1;
+  z-index: 2;
+  margin-bottom: 16px;
 }
 
 .step-item.done .step-circle {
@@ -92,16 +111,13 @@
 
 /* Label */
 .step-label {
-  position: absolute;
-  top: 42px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--outline);
   white-space: nowrap;
   letter-spacing: 0.03em;
   transition: color 0.3s;
+  text-align: center;
 }
 
 .step-item.done .step-label  { color: var(--emerald); }
@@ -112,7 +128,25 @@
 
 /* Mobile */
 @media (max-width: 640px) {
-  .step-circle { width: 28px; height: 28px; font-size: 11px; }
-  .step-label  { font-size: 10px; top: 36px; }
-  .step-indicator { margin-bottom: 44px; }
+  .step-indicator {
+    margin-bottom: 44px;
+    padding: 0 4px;
+  }
+  
+  .step-circle { 
+    width: 32px; 
+    height: 32px; 
+    font-size: 12px; 
+    margin-bottom: 12px;
+  }
+  
+  .step-label  { font-size: 11px; }
+  
+  .step-indicator::before {
+    top: 15px;
+  }
+  
+  .step-connector {
+    top: 15px;
+  }
 }
