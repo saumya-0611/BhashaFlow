@@ -1,13 +1,3 @@
-/**
- * AIAnalysis.jsx
- * Route: /ai-result/:id  —  Step 4
- *
- * FIX: No longer depends exclusively on location.state.
- * If state is missing (refresh / direct URL), fetches from GET /api/grievance/:id.
- * Consistent field names: category, priority only (no llm_category fallback).
- * Added loading and error states.
- */
-
 import { useState, useEffect } from 'react';
 import { useLocation, useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -16,28 +6,31 @@ import { useGrievanceFlow } from '../context/GrievanceFlowContext';
 import api from '../utils/api';
 import './AIAnalysis.css';
 
+const sectionVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: (i) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.1, duration: 0.45, ease: [0.4, 0, 0.2, 1] }
+  }),
+};
+
 export default function AIAnalysis() {
-  const { id }    = useParams();
-  const location  = useLocation();
+  const { id }       = useParams();
+  const location     = useLocation();
   const { exitFlow } = useGrievanceFlow();
 
-  // Submission is complete — exit the guarded flow
   useEffect(() => { exitFlow(); }, [exitFlow]);
 
   const [data, setData]       = useState(location.state || null);
   const [loading, setLoading] = useState(!location.state);
   const [error, setError]     = useState('');
 
-  // ── Fallback fetch if no state (refresh / direct URL) ─────────
   useEffect(() => {
     if (location.state) return;
-
     const fetchData = async () => {
       try {
         const res = await api.get(`/api/grievance/${id}`);
         const { grievance, ai_analysis } = res.data;
-
-        // Reconstruct the shape GrievanceForm.navigate() would have passed
         setData({
           english_summary:          ai_analysis?.english_summary || grievance.title || '',
           category:                 grievance.category || 'other',
@@ -49,42 +42,39 @@ export default function AIAnalysis() {
           procedure_steps:          grievance.procedure_steps || [],
           expected_resolution_days: grievance.expected_resolution_days || null,
         });
-      } catch (err) {
+      } catch {
         setError('Could not load grievance analysis. Please try again from the dashboard.');
       } finally {
         setLoading(false);
       }
     };
-
     fetchData();
   }, [id, location.state]);
 
-  // ── Loading ───────────────────────────────────────────────────
   if (loading) {
     return (
       <DashboardLayout>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
           <div style={{ textAlign: 'center' }}>
             <motion.div
-              style={{ width: 40, height: 40, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 16px' }}
+              style={{ width: 44, height: 44, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto 16px' }}
               animate={{ rotate: 360 }}
               transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
             />
-            <p style={{ color: 'var(--on-surface-variant)' }}>Loading AI analysis…</p>
+            <p style={{ color: 'var(--on-surface-variant)', fontSize: 14 }}>Loading AI analysis…</p>
           </div>
         </div>
       </DashboardLayout>
     );
   }
 
-  // ── Error ─────────────────────────────────────────────────────
   if (error || !data) {
     return (
       <DashboardLayout>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div className="card" style={{ padding: '32px', textAlign: 'center', maxWidth: 400 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--error)' }}>error</span>
-            <p style={{ margin: '16px 0 24px' }}>{error || 'Analysis data not available.'}</p>
+          <div style={{ padding: '32px', textAlign: 'center', maxWidth: 400 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 44, color: 'var(--error)', display: 'block', marginBottom: 16 }}>error</span>
+            <p style={{ marginBottom: 24, color: 'var(--on-surface-variant)' }}>{error || 'Analysis data not available.'}</p>
             <Link to="/dashboard" className="btn btn-primary">Back to Dashboard</Link>
           </div>
         </div>
@@ -92,7 +82,6 @@ export default function AIAnalysis() {
     );
   }
 
-  // ── Destructure — use ONLY category (no llm_* fallbacks) ──
   const {
     english_summary          = '',
     category                 = 'other',
@@ -103,60 +92,61 @@ export default function AIAnalysis() {
     confidence_score,
   } = data;
 
-  // Normalise portal_links → always an array for the render loop
   const portalsArray = (() => {
     if (!portal_links) return [];
-    if (Array.isArray(portal_links)) {
-      return portal_links.map(p => ({
-        name: p.portal_name || p.name,
-        url:  p.portal_url || p.url,
-        desc: p.helpline ? `Helpline: ${p.helpline}` : (p.desc || ''),
-      }));
-    }
-    return [{
-      name: portal_links.portal_name,
-      url:  portal_links.portal_url,
-      desc: portal_links.helpline ? `Helpline: ${portal_links.helpline}` : '',
-    }];
+    if (Array.isArray(portal_links)) return portal_links.map(p => ({
+      name: p.portal_name || p.name,
+      url:  p.portal_url  || p.url,
+      desc: p.helpline ? `Helpline: ${p.helpline}` : (p.desc || ''),
+    }));
+    return [{ name: portal_links.portal_name, url: portal_links.portal_url, desc: portal_links.helpline ? `Helpline: ${portal_links.helpline}` : '' }];
   })();
 
   return (
     <DashboardLayout>
       <div className="ai-page">
 
-        {/* Header */}
-        <section className="ai-header">
-          <div className="ai-header-badge">
-            <span className="material-symbols-outlined filled">psychology</span>
-            <h1>AI Analysis Result</h1>
+        {/* Success banner */}
+        <motion.div
+          className="ai-success-banner"
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        >
+          <motion.div
+            className="ai-success-icon"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 320, damping: 20 }}
+          >
+            <span className="material-symbols-outlined filled">check_circle</span>
+          </motion.div>
+          <div className="ai-success-text">
+            <h2>Grievance Submitted Successfully</h2>
+            <p>Your complaint has been received, analysed by AI, and is being routed to the correct authority.</p>
           </div>
-          <p>
-            Your grievance has been submitted and analysed. Here is the translated summary
-            and next best actions mapped to nearby resources.
-          </p>
-        </section>
+        </motion.div>
 
-        {/* English Summary */}
-        {english_summary ? (
-          <blockquote className="ai-quote card">
+        {/* Summary quote */}
+        {english_summary && (
+          <motion.div
+            className="ai-quote"
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+          >
             <span className="material-symbols-outlined quote-icon">format_quote</span>
-            <p style={{ fontStyle: 'normal' }}>
-              <strong>English Summary:</strong> {english_summary}
-            </p>
-          </blockquote>
-        ) : (
-          <div className="card" style={{ padding: '16px', marginBottom: '24px', color: 'var(--outline)' }}>
-            AI summary not available for this grievance.
-          </div>
+            <p><strong>AI Summary: </strong>{english_summary}</p>
+          </motion.div>
         )}
 
         <div className="ai-grid">
           <div className="ai-main">
 
             {/* Classification */}
-            <section className="classification-section card">
+            <motion.section className="ai-section" custom={0} variants={sectionVariants} initial="hidden" animate="show">
               <h2>
-                <span className="material-symbols-outlined">analytics</span>
+                <span className="material-symbols-outlined" style={{ color: 'var(--primary-container)' }}>analytics</span>
                 Classification
               </h2>
               <div className="class-grid">
@@ -177,96 +167,98 @@ export default function AIAnalysis() {
                   </div>
                 )}
               </div>
-            </section>
+            </motion.section>
 
             {/* Government Portals */}
-            <section className="actions-section card">
+            <motion.section className="ai-section" custom={1} variants={sectionVariants} initial="hidden" animate="show">
               <h2>
-                <span className="material-symbols-outlined">account_balance</span>
+                <span className="material-symbols-outlined" style={{ color: 'var(--saffron)' }}>account_balance</span>
                 Relevant Government Portals
               </h2>
               <div className="action-list">
                 {portalsArray.length > 0 ? portalsArray.map((p, i) => (
-                  <a
+                  <motion.a
                     key={i}
                     href={p.url || '#'}
                     target="_blank"
                     rel="noreferrer"
-                    className="action-card surface-low"
+                    className="action-card"
                     style={{ textDecoration: 'none' }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 + i * 0.08 }}
                   >
                     <div className="action-info">
-                      <span className="material-symbols-outlined action-icon">domain</span>
+                      <div className="action-icon">
+                        <span className="material-symbols-outlined">domain</span>
+                      </div>
                       <div>
-                        <strong>{p.name || p.portal_name || 'Portal'}</strong>
+                        <strong>{p.name || 'Portal'}</strong>
                         {p.desc && <p>{p.desc}</p>}
                       </div>
                     </div>
                     <span className="material-symbols-outlined">open_in_new</span>
-                  </a>
+                  </motion.a>
                 )) : (
-                  <p style={{ color: 'var(--outline)', fontSize: 'var(--body-sm)' }}>
-                    {location.state
-                      ? 'No specific portals matched for your state/category combination.'
-                      : 'No persisted portal data is available for this grievance.'}
-                  </p>
+                  <p style={{ color: 'var(--outline)', fontSize: 13 }}>No specific portals matched for your state/category.</p>
                 )}
               </div>
-            </section>
+            </motion.section>
 
-            {/* Procedure Steps */}
-            <section className="actions-section card">
+            {/* Procedure */}
+            <motion.section className="ai-section" custom={2} variants={sectionVariants} initial="hidden" animate="show">
               <h2>
-                <span className="material-symbols-outlined">format_list_numbered</span>
-                Procedure Guidelines
+                <span className="material-symbols-outlined" style={{ color: 'var(--emerald)' }}>format_list_numbered</span>
+                Next Steps
               </h2>
-              <div style={{ marginLeft: '16px' }}>
-                {procedure_steps.length > 0 ? (
-                  <ol style={{ paddingLeft: '16px', lineHeight: '1.6' }}>
-                    {procedure_steps.map((step, i) => (
-                      <li key={i} style={{ marginBottom: '8px' }}>{step}</li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p style={{ color: 'var(--outline)', fontSize: 'var(--body-sm)' }}>
-                    {location.state
-                      ? 'No procedure steps available for this category/state.'
-                      : 'No persisted procedure steps are available for this grievance.'}
-                  </p>
-                )}
-              </div>
-            </section>
+              {procedure_steps.length > 0 ? (
+                <div className="procedure-list">
+                  {procedure_steps.map((step, i) => (
+                    <motion.div
+                      key={i}
+                      className="procedure-step"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + i * 0.07 }}
+                    >
+                      <div className="procedure-num">{i + 1}</div>
+                      <p>{step}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: 'var(--outline)', fontSize: 13 }}>No procedure steps available for this category.</p>
+              )}
+            </motion.section>
 
             {/* CTA */}
-            <div className="ai-cta">
-              <p>Move forward with your application or keep a record for your files.</p>
+            <motion.div className="ai-cta" custom={3} variants={sectionVariants} initial="hidden" animate="show">
+              <p>Save this analysis for your records or return to your dashboard to track progress.</p>
               <div className="ai-cta-btns">
-                <button className="btn btn-primary" onClick={() => window.print()}>
-                  <span className="material-symbols-outlined">download</span>
-                  Download PDF Summary
+                <button className="btn btn-primary" onClick={() => window.print()} style={{ borderRadius: 10 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+                  Download Summary
                 </button>
-                <Link to="/dashboard" className="btn btn-outline">
-                  <span className="material-symbols-outlined">dashboard</span>
+                <Link to="/dashboard" className="btn btn-outline" style={{ borderRadius: 10 }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>dashboard</span>
                   Back to Dashboard
                 </Link>
               </div>
-            </div>
+            </motion.div>
           </div>
 
-          {/* Right aside */}
+          {/* Aside */}
           <aside className="ai-aside">
 
             {/* Nearby Offices */}
-            <div className="contact-card card surface-low">
+            <motion.div className="ai-aside-card" custom={0} variants={sectionVariants} initial="hidden" animate="show">
               <h3>
-                <span className="material-symbols-outlined">business</span>
+                <span className="material-symbols-outlined" style={{ color: 'var(--primary-container)' }}>business</span>
                 Nearby Offices
               </h3>
               {nearby_offices.length > 0 ? nearby_offices.map((office, idx) => (
-                <div key={idx} className="contact-item" style={{ marginBottom: '16px' }}>
-                  <span className="contact-label" style={{ fontWeight: 'bold' }}>
-                    {office.name || office}
-                  </span>
+                <div key={idx} className="contact-item">
+                  <span className="contact-label">{office.name || office}</span>
                   {office.lat && (
                     <a
                       href={`https://www.google.com/maps/search/?api=1&query=${office.lat},${office.lng}`}
@@ -274,58 +266,56 @@ export default function AIAnalysis() {
                       rel="noreferrer"
                       className="contact-value"
                     >
-                      View on Google Maps ↗
+                      View on Maps →
                     </a>
                   )}
                 </div>
               )) : (
-                <p style={{ fontSize: '14px', color: 'var(--outline)' }}>
-                  {location.state
-                    ? 'No nearby offices found for your district.'
-                    : 'No persisted nearby offices are available for this grievance.'}
-                </p>
+                <p style={{ fontSize: 13, color: 'var(--outline)' }}>No nearby offices found for your district.</p>
               )}
-            </div>
+            </motion.div>
 
             {/* Helpline */}
             {portal_links?.helpline && (
-              <div className="contact-card card surface-low">
+              <motion.div className="ai-aside-card" custom={1} variants={sectionVariants} initial="hidden" animate="show">
                 <h3>
-                  <span className="material-symbols-outlined">call</span>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--saffron)' }}>call</span>
                   Helpline
                 </h3>
-                <a href={`tel:${portal_links.helpline}`} className="contact-value" style={{ fontSize: '20px', fontWeight: 700 }}>
+                <a href={`tel:${portal_links.helpline}`} className="contact-value" style={{ fontSize: 20, fontWeight: 800 }}>
                   {portal_links.helpline}
                 </a>
-                <p style={{ fontSize: '13px', color: 'var(--outline)', marginTop: '4px' }}>
-                  {portal_links.portal_name}
-                </p>
-              </div>
+                <p style={{ fontSize: 12, color: 'var(--outline)', marginTop: 4 }}>{portal_links.portal_name}</p>
+              </motion.div>
             )}
 
-            {/* Map Placeholder */}
-            <div className="map-card card surface-low">
-              <h3>Service Coverage Map</h3>
+            {/* Map */}
+            <motion.div className="ai-aside-card" custom={2} variants={sectionVariants} initial="hidden" animate="show">
+              <h3>
+                <span className="material-symbols-outlined" style={{ color: 'var(--emerald)' }}>map</span>
+                Coverage Map
+              </h3>
               <div className="map-placeholder">
-                <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>map</span>
+                <span className="material-symbols-outlined">location_on</span>
                 <span>Interactive Map</span>
-                <span style={{ fontSize: '12px', background: 'var(--surface-container-highest)', padding: '2px 8px', borderRadius: '4px' }}>
-                  Coverage matching user region
-                </span>
+                <span style={{ fontSize: 11, background: 'var(--surface-container-highest)', padding: '2px 8px', borderRadius: 4 }}>Region coverage</span>
               </div>
-            </div>
+            </motion.div>
 
-            {/* Case Metadata */}
-            <div className="meta-card card surface-low">
-              <h3>Case Metadata</h3>
+            {/* Eco badge */}
+            <motion.div className="ai-aside-card" custom={3} variants={sectionVariants} initial="hidden" animate="show">
+              <h3>
+                <span className="material-symbols-outlined" style={{ color: 'var(--emerald)' }}>eco</span>
+                Environmental Impact
+              </h3>
               <div className="eco-badge">
-                <span className="material-symbols-outlined" style={{ color: 'var(--emerald)', fontSize: 20 }}>eco</span>
+                <span className="material-symbols-outlined" style={{ color: 'var(--emerald)', fontSize: 18 }}>eco</span>
                 <div>
-                  <span className="eco-label">Eco Impact</span>
-                  <p>Digital filing saved approx. 120g of paper carbon.</p>
+                  <span className="eco-label">Digital Filing</span>
+                  <p>Saved approx. 120g paper carbon by filing digitally.</p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </aside>
         </div>
       </div>

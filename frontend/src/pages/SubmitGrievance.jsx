@@ -1,41 +1,71 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
 import StepIndicator from '../components/StepIndicator';
 import api from '../utils/api';
 import './SubmitGrievance.css';
 
+const TABS = [
+  { id: 'text',  label: 'Type',  icon: 'edit_note' },
+  { id: 'voice', label: 'Speak', icon: 'mic'       },
+];
+
+function TabSlider({ activeTab }) {
+  const idx = TABS.findIndex(t => t.id === activeTab);
+  return (
+    <motion.div
+      className="submit-tab-slider"
+      animate={{ left: `calc(${idx * 50}% + 4px)`, width: 'calc(50% - 4px)' }}
+      transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+    />
+  );
+}
+
+/* Animated waveform bars */
+function Waveform() {
+  const bars = Array.from({ length: 18 }, (_, i) => i);
+  return (
+    <div className="waveform">
+      {bars.map((i) => (
+        <div
+          key={i}
+          className="waveform-bar"
+          style={{ animationDelay: `${(i * 0.07) % 0.8}s` }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function SubmitGrievance() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const [activeTab, setActiveTab] = useState('text');
-  
-  // text tab
+
+  // Text tab
   const [text, setText] = useState(state?.prefillText || '');
-  
-  // voice tab
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState(null);
-  const [audioUrl, setAudioUrl] = useState('');
+
+  // Voice tab
+  const [isRecording, setIsRecording]   = useState(false);
+  const [audioBlob, setAudioBlob]       = useState(null);
+  const [audioUrl, setAudioUrl]         = useState('');
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef(null);
-  const timerRef = useRef(null);
+  const timerRef         = useRef(null);
 
-  // image tab
-  const [files, setFiles] = useState([]);
+  // File upload
+  const [files, setFiles]     = useState([]);
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef(null);
 
   const [submitting, setSubmitting] = useState(false);
 
-  // Voice recording handlers
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
-      
       const chunks = [];
       recorder.ondataavailable = e => chunks.push(e.data);
       recorder.onstop = () => {
@@ -43,22 +73,19 @@ export default function SubmitGrievance() {
         setAudioBlob(blob);
         setAudioUrl(URL.createObjectURL(blob));
       };
-
       recorder.start();
       setIsRecording(true);
       setRecordingTime(0);
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
+      timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
     } catch (err) {
-      alert('Could not access microphone: ' + err.message);
+      alert('Microphone access denied: ' + err.message);
     }
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
       setIsRecording(false);
       clearInterval(timerRef.current);
     }
@@ -67,24 +94,17 @@ export default function SubmitGrievance() {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (mediaRecorderRef.current?.stream) {
+      if (mediaRecorderRef.current?.stream)
         mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
-      }
     };
   }, []);
 
-  const formatTime = (secs) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, '0');
-    const s = (secs % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
+  const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
 
-  // Image handlers
   const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    setFiles(prev => [...prev, ...dropped]);
+    setFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);
   };
 
   const validateInput = () => {
@@ -95,16 +115,11 @@ export default function SubmitGrievance() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateInput()) { 
-      alert('Please provide input for the selected mode.'); 
-      return; 
-    }
-    
+    if (!validateInput()) { alert('Please provide input for the selected mode.'); return; }
     const formData = new FormData();
-    if (activeTab === 'text') formData.append('text', text);
+    if (activeTab === 'text')  formData.append('text', text);
     if (activeTab === 'voice') formData.append('audio', audioBlob, 'recording.webm');
-    if (files.length > 0) formData.append('image', files[0]); // Send as image field for backend compat
-
+    if (files.length > 0)      formData.append('image', files[0]);
     setSubmitting(true);
     try {
       const res = await api.post('/api/grievance/ingest', formData);
@@ -118,109 +133,151 @@ export default function SubmitGrievance() {
 
   return (
     <DashboardLayout>
-      <div className="submit-page">
-        {/* Header */}
+      <motion.div
+        className="submit-page"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+      >
         <section className="submit-header">
           <StepIndicator currentStep={0} />
           <h1>Submit Your Grievance</h1>
-          <p>Choose how you want to describe your grievance. Our AI handles text and voice securely.</p>
+          <p>Type or speak your complaint in any Indian language — our AI handles translation and routing automatically.</p>
         </section>
 
-        <form onSubmit={handleSubmit} className="submit-form">
+        <form onSubmit={handleSubmit}>
           <div className="submit-grid">
-            {/* Left Column — Form */}
             <div className="submit-main">
-              
-              {/* Tab Selector */}
-              <div className="flex bg-surface-low rounded-lg p-1 mb-6" style={{ display: 'flex', gap: '8px', background: 'var(--surface-container-low)', padding: '6px', borderRadius: '8px', marginBottom: '24px' }}>
-                {['text', 'voice'].map(tab => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveTab(tab)}
-                    style={{ flex: 1, padding: '10px', borderRadius: '6px', border: 'none', 
-                             background: activeTab === tab ? 'white' : 'transparent',
-                             color: activeTab === tab ? 'var(--primary)' : 'var(--on-surface-variant)',
-                             fontWeight: activeTab === tab ? '600' : '400',
-                             boxShadow: activeTab === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                             cursor: 'pointer', textTransform: 'capitalize' }}
-                  >
-                    {tab}
-                  </button>
-                ))}
+
+              {/* Tab switcher */}
+              <div style={{ position: 'relative' }}>
+                <div className="submit-tabs">
+                  <TabSlider activeTab={activeTab} />
+                  {TABS.map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`submit-tab ${activeTab === tab.id ? 'active' : ''}`}
+                      onClick={() => setActiveTab(tab.id)}
+                    >
+                      <span className="material-symbols-outlined">{tab.icon}</span>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Text Area Tab */}
-              {activeTab === 'text' && (
-                <div className="field-group">
-                  <label className="input-label" htmlFor="grievance-text">Describe Your Grievance</label>
-                  <textarea
-                    id="grievance-text"
-                    className="input-field grievance-textarea"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder="Type your grievance in any Indian language. Our AI will handle translation and categorization automatically..."
-                    rows={8}
-                  />
-                </div>
-              )}
+              {/* Tab content */}
+              <AnimatePresence mode="wait">
+                {activeTab === 'text' ? (
+                  <motion.div
+                    key="text"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25 }}
+                    className="field-group"
+                  >
+                    <label className="input-label">Describe Your Grievance</label>
+                    <textarea
+                      className="grievance-textarea"
+                      value={text}
+                      onChange={e => setText(e.target.value)}
+                      placeholder="Type in Hindi, Tamil, Telugu, English, or any Indian language... our AI will understand and translate automatically."
+                      maxLength={2000}
+                    />
+                    <p className="char-count">{text.length} / 2000</p>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="voice"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <div className="voice-zone">
+                      {/* Timer */}
+                      <div className={`voice-timer ${isRecording ? 'recording' : ''}`}>
+                        {formatTime(recordingTime)}
+                      </div>
 
-              {/* Voice Tab */}
-              {activeTab === 'voice' && (
-                <div className="field-group voice-recording-zone" style={{ padding: '24px', background: 'var(--surface-container-low)', borderRadius: '12px', textAlign: 'center' }}>
-                  <div style={{ marginBottom: '16px', fontSize: '24px', fontWeight: 'bold', color: isRecording ? 'var(--error)' : 'var(--on-surface)' }}>
-                    {formatTime(recordingTime)}
-                  </div>
-                  
-                  {!isRecording ? (
-                    <button type="button" onClick={startRecording} className="btn btn-primary" style={{ borderRadius: '50px', padding: '12px 24px' }}>
-                      <span className="material-symbols-outlined mr-2">mic</span> Start Recording
-                    </button>
-                  ) : (
-                    <button type="button" onClick={stopRecording} className="btn" style={{ background: 'var(--error)', color: 'white', borderRadius: '50px', padding: '12px 24px' }}>
-                      <span className="material-symbols-outlined mr-2">stop</span> Stop Recording
-                    </button>
-                  )}
+                      {/* Waveform (only while recording) */}
+                      <AnimatePresence>
+                        {isRecording && (
+                          <motion.div
+                            initial={{ opacity: 0, scaleY: 0 }}
+                            animate={{ opacity: 1, scaleY: 1 }}
+                            exit={{ opacity: 0, scaleY: 0 }}
+                          >
+                            <Waveform />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
 
-                  {audioUrl && !isRecording && (
-                    <div style={{ marginTop: '24px' }}>
-                      <audio src={audioUrl} controls style={{ width: '100%' }} />
+                      {/* Record button */}
+                      <button
+                        type="button"
+                        className={`voice-record-btn ${isRecording ? 'active' : 'idle'}`}
+                        onClick={isRecording ? stopRecording : startRecording}
+                      >
+                        <span className="material-symbols-outlined">
+                          {isRecording ? 'stop' : 'mic'}
+                        </span>
+                      </button>
+
+                      <p style={{ fontSize: 13, color: 'var(--on-surface-variant)' }}>
+                        {isRecording ? 'Tap to stop recording' : audioBlob ? 'Recording saved — tap mic to re-record' : 'Tap to start speaking'}
+                      </p>
+
+                      {audioUrl && !isRecording && (
+                        <motion.audio
+                          src={audioUrl}
+                          controls
+                          style={{ width: '100%', borderRadius: 8 }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                        />
+                      )}
                     </div>
-                  )}
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              {/* Always-visible Proof Upload Zone */}
-              <div className="field-group" style={{ marginTop: '24px' }}>
-                <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>
-                  Attach Proof (PDF format) <span style={{ color: 'var(--outline)', fontWeight: 'normal', fontStyle: 'italic', marginLeft: '6px' }}>(Optional)</span>
+              {/* Upload zone */}
+              <div className="field-group">
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Attach Proof
+                  <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--outline)', textTransform: 'none', letterSpacing: 0 }}>(PDF, optional)</span>
                 </label>
                 <div
                   className={`upload-zone ${dragging ? 'dragging' : ''} ${files.length > 0 ? 'has-files' : ''}`}
-                  onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+                  onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   onDrop={handleDrop}
                   onClick={() => fileRef.current?.click()}
-                  style={{ border: '2px dashed var(--outline-variant)', borderRadius: '12px', padding: '32px', textAlign: 'center', cursor: 'pointer', background: dragging ? 'var(--surface-container-high)' : 'var(--surface-container-lowest)' }}
                 >
                   <input
-                    type="file" ref={fileRef} style={{ display: 'none' }}
+                    type="file"
+                    ref={fileRef}
+                    style={{ display: 'none' }}
                     accept="application/pdf"
-                    onChange={(e) => setFiles(prev => [...prev, ...Array.from(e.target.files)])}
+                    onChange={e => setFiles(prev => [...prev, ...Array.from(e.target.files)])}
                   />
-                  <span className="material-symbols-outlined upload-icon" style={{ fontSize: '40px', color: 'var(--primary)', marginBottom: '12px' }}>cloud_upload</span>
-                  <p className="upload-text" style={{ fontSize: '16px', fontWeight: '500', color: 'var(--on-surface)' }}>
+                  <span className="material-symbols-outlined upload-icon">
+                    {files.length > 0 ? 'check_circle' : 'cloud_upload'}
+                  </span>
+                  <p className="upload-text">
                     {files.length > 0
-                      ? `${files.length} file(s) attached`
-                      : 'Drag and drop PDF proof here, or click to browse'
-                    }
+                      ? `${files.length} file attached`
+                      : 'Drop PDF here or click to browse'}
                   </p>
-                  <p className="upload-hint" style={{ fontSize: '14px', color: 'var(--outline)', marginTop: '8px' }}>Max size 10MB. Formats: PDF Only</p>
+                  <p className="upload-hint">Max 10MB · PDF only</p>
                   {files.length > 0 && (
-                    <div className="file-list" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginTop: '16px' }}>
+                    <div className="file-list">
                       {files.map((f, i) => (
-                        <span key={i} className="chip chip-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'var(--primary-container)', color: 'var(--on-primary-container)', padding: '4px 12px', borderRadius: '16px', fontSize: '14px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>attach_file</span>
+                        <span key={i} className="chip chip-success" style={{ fontSize: 12 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>attach_file</span>
                           {f.name}
                         </span>
                       ))}
@@ -229,30 +286,62 @@ export default function SubmitGrievance() {
                 </div>
               </div>
 
-              {/* Submit Button */}
-              <button type="submit" className="btn btn-primary submit-btn mt-6" disabled={submitting} style={{ width: '100%', marginTop: '24px' }}>
-                {submitting ? 'Our AI is reading your grievance...' : 'Submit Grievance'}
-                {submitting && (
-                  <motion.div
-                    style={{ width: 18, height: 18, border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', marginLeft: 8 }}
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
-                  />
+              {/* Submit */}
+              <motion.button
+                type="submit"
+                className="submit-btn"
+                disabled={submitting}
+                whileHover={{ scale: submitting ? 1 : 1.015 }}
+                whileTap={{ scale: submitting ? 1 : 0.98 }}
+              >
+                {submitting ? (
+                  <>
+                    <motion.span
+                      style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block' }}
+                      animate={{ rotate: 360 }}
+                      transition={{ repeat: Infinity, duration: 0.8, ease: 'linear' }}
+                    />
+                    AI is reading your grievance…
+                  </>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined">send</span>
+                    Submit Grievance
+                  </>
                 )}
-                {!submitting && <span className="material-symbols-outlined ml-2">send</span>}
-              </button>
+              </motion.button>
 
-              {/* Security Badge */}
-              <div className="security-badge" style={{ marginTop: '16px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--emerald)' }}>lock</span>
-                <span>Digital Sovereignty at Work — Secure submission via official government protocol.</span>
+              <div className="security-badge">
+                <span className="material-symbols-outlined">lock</span>
+                Secure submission — NIC-compliant, end-to-end encrypted.
               </div>
             </div>
 
-            {/* Right Column Removed as requested */}
+            {/* Aside */}
+            <aside className="submit-aside">
+              {[
+                { icon: 'translate', color: 'var(--primary-container)', title: '22+ Languages Supported', body: 'Write in Hindi, Tamil, Telugu, Bengali, Marathi, or any scheduled Indian language.' },
+                { icon: 'psychology', color: 'var(--saffron)', title: 'AI Verification', body: 'Our AI reads your grievance and confirms it understood correctly before routing.' },
+                { icon: 'verified_user', color: 'var(--emerald)', title: 'Safe & Anonymous', body: 'Your personal details are never shared publicly. Only the assigned authority sees them.' },
+              ].map((card, i) => (
+                <motion.div
+                  key={card.title}
+                  className="info-card"
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 + i * 0.1 }}
+                >
+                  <div className="info-card-header">
+                    <span className="material-symbols-outlined filled" style={{ fontSize: 20, color: card.color }}>{card.icon}</span>
+                    <h3>{card.title}</h3>
+                  </div>
+                  <p>{card.body}</p>
+                </motion.div>
+              ))}
+            </aside>
           </div>
         </form>
-      </div>
+      </motion.div>
     </DashboardLayout>
   );
 }
