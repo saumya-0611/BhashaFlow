@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGrievanceFlow } from '../context/GrievanceFlowContext';
 import LeaveFlowModal from './LeaveFlowModal';
 import api from '../utils/api';
 import './Sidebar.css';
+
+let isFirstSidebarLoad = true;
 
 export default function Sidebar({ isAdmin = false }) {
   const location = useLocation();
@@ -16,6 +18,11 @@ export default function Sidebar({ isAdmin = false }) {
   const [deleting, setDeleting]     = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileOpen, setMobileOpen]     = useState(false);
+
+  // Disable initial animation after first mount to prevent re-animation on route/state changes
+  useEffect(() => {
+    isFirstSidebarLoad = false;
+  }, []);
 
   const isFlowPath = (path) =>
     path.startsWith('/verify/') ||
@@ -91,7 +98,7 @@ export default function Sidebar({ isAdmin = false }) {
   const links = isAdmin ? adminLinks : citizenLinks;
   const userName = localStorage.getItem('userName') || 'Citizen';
 
-  const SidebarContent = () => (
+  const renderSidebarContent = () => (
     <>
       {/* Brand */}
       <div className="sidebar-brand surface-highest">
@@ -127,9 +134,9 @@ export default function Sidebar({ isAdmin = false }) {
           return (
             <motion.div
               key={link.name}
-              initial={{ opacity: 0, x: -16 }}
+              initial={isFirstSidebarLoad ? { opacity: 0, x: -16 } : false}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 + 0.1 }}
+              transition={{ delay: isFirstSidebarLoad ? i * 0.05 + 0.1 : 0 }}
             >
               <Link
                 to={link.path}
@@ -158,9 +165,9 @@ export default function Sidebar({ isAdmin = false }) {
             <div className="health-bar-bg">
               <motion.div
                 className="health-bar-fill"
-                initial={{ width: 0 }}
+                initial={isFirstSidebarLoad ? { width: 0 } : false}
                 animate={{ width: '88%' }}
-                transition={{ delay: 0.8, duration: 1, ease: [0.4, 0, 0.2, 1] }}
+                transition={isFirstSidebarLoad ? { delay: 0.8, duration: 1, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
               />
             </div>
             <span className="health-value">88% Capacity</span>
@@ -231,7 +238,7 @@ export default function Sidebar({ isAdmin = false }) {
 
       {/* Sidebar */}
       <aside className={`sidebar surface-highest ${mobileOpen ? 'open' : ''}`}>
-        <SidebarContent />
+        {renderSidebarContent()}
       </aside>
 
       <LeaveFlowModal
