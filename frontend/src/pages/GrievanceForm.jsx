@@ -60,7 +60,7 @@ export default function GrievanceForm() {
       return { ...prevState.form };
     }
     return {
-      user_name: '', user_phone: '', state: '',
+      user_name: '', user_phone: '+91 ', state: '',
       district: '', pincode: '', address: '', landmark: '',
     };
   });
@@ -114,7 +114,7 @@ export default function GrievanceForm() {
         // Populate form with any previously saved details
         setForm((prev) => ({
           user_name:  grievance.user_name  || prev.user_name  || '',
-          user_phone: grievance.user_phone || prev.user_phone || '',
+          user_phone: grievance.user_phone || prev.user_phone || '+91 ',
           state:      grievance.state      || prev.state      || '',
           district:   grievance.district   || prev.district   || '',
           pincode:    grievance.pincode    || prev.pincode    || '',
@@ -240,13 +240,33 @@ export default function GrievanceForm() {
                 {fields.filter(f => f.half).map((f) => (
                   <motion.div key={f.field} className="field-group" custom={f.custom} variants={fieldVariants} initial="initial" animate="animate">
                     <label className="input-label">{f.label}</label>
-                    <input
-                      type={f.type}
-                      className="input-field"
-                      value={form[f.field]}
-                      onChange={set(f.field)}
-                      placeholder={f.placeholder}
-                    />
+                    {f.field === 'user_phone' ? (
+                      <input
+                        type="tel"
+                        className="input-field"
+                        value={form[f.field]?.startsWith('+91 ') ? form[f.field] : '+91 ' + (form[f.field] || '').replace(/^(\+91\s*|\+91)/, '')}
+                        onChange={(e) => {
+                          let val = e.target.value;
+                          if (!val.startsWith('+91 ')) {
+                            if (val.length < 4) {
+                              val = '+91 ';
+                            } else {
+                              val = '+91 ' + val.replace(/^(\+91\s*|\+91)/, '');
+                            }
+                          }
+                          setForm(prev => ({ ...prev, user_phone: val }));
+                        }}
+                        placeholder="+91 98XXXXXXXX"
+                      />
+                    ) : (
+                      <input
+                        type={f.type}
+                        className="input-field"
+                        value={form[f.field]}
+                        onChange={set(f.field)}
+                        placeholder={f.placeholder}
+                      />
+                    )}
                   </motion.div>
                 ))}
               </div>
