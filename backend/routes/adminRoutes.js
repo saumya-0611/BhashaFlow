@@ -207,4 +207,30 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// ─── GET /api/admin/ai-insights ─────────────────────────────────
+router.get('/ai-insights', async (req, res) => {
+  try {
+    const [totalAnalyses, avgConfidence, categoriesAnalyzed, portalsFound] = await Promise.all([
+      AiAnalysis.countDocuments(),
+      AiAnalysis.aggregate([{ $group: { _id: null, avg: { $avg: '$confidence_score' } } }]),
+      AiAnalysis.distinct('category'),
+      AiAnalysis.aggregate([{ $unwind: '$portal_links' }, { $count: 'total' }]),
+    ]);
+
+    const avgConf = avgConfidence.length > 0 ? avgConfidence[0].avg : 0;
+    const catCount = categoriesAnalyzed.length;
+    const portalCount = portalsFound.length > 0 ? portalsFound[0].total : 0;
+
+    res.status(200).json({
+      total_ai_analyses: totalAnalyses,
+      avg_confidence: avgConf,
+      categories_analyzed: catCount,
+      portals_found: portalCount,
+    });
+  } catch (error) {
+    console.error('❌ AI insights error:', error.message);
+    res.status(500).json({ message: 'Failed to fetch AI insights', error: error.message });
+  }
+});
+
 export default router;

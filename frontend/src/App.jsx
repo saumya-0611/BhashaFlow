@@ -18,6 +18,8 @@ import Settings        from './pages/Settings';
 
 // Admin pages
 import AdminDashboard from './pages/AdminDashboard';
+import AdminGrievances from './pages/AdminGrievances';
+import AdminAIInsights from './pages/AdminAIInsights';
 
 // Route guards
 import { ProtectedRoute, AdminRoute } from './utils/auth';
@@ -68,6 +70,12 @@ function App() {
           {/* ── Admin (protected + role check) ─────────────── */}
           <Route path="/admin"
             element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+
+          <Route path="/admin/grievances"
+            element={<AdminRoute><AdminGrievances /></AdminRoute>} />
+
+          <Route path="/admin/ai-insights"
+            element={<AdminRoute><AdminAIInsights /></AdminRoute>} />
 
           {/* ── Fallbacks ───────────────────────────────────── */}
           <Route path="/"  element={<Navigate to="/auth" replace />} />
