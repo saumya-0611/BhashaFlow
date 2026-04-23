@@ -73,6 +73,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!localStorage.getItem('token')) { navigate('/auth'); return; }
+    // Redirect admins to their own dashboard
+    const role = localStorage.getItem('userRole');
+    if (role === 'admin' || role === 'authority') { navigate('/admin', { replace: true }); return; }
     const fetchData = async () => {
       try {
         const res = await api.get('/api/grievance/recent');
@@ -139,7 +142,7 @@ export default function Dashboard() {
             <div className="section-header">
               <h2>My Recent Grievances</h2>
               {!loading && grievances.length > 0 && (
-                <Link to="#" className="btn btn-tertiary" style={{ fontSize: 12 }}>View All</Link>
+                <Link to="/submit" className="btn btn-tertiary" style={{ fontSize: 12 }}>+ New</Link>
               )}
             </div>
 
@@ -226,10 +229,10 @@ export default function Dashboard() {
                 <h3>Need Guidance?</h3>
               </div>
               <p>Access the official BhashaFlow handbook for step-by-step grievance filing in your language.</p>
-              <button className="btn btn-outline" style={{ marginTop: 14, fontSize: 13, padding: '8px 16px' }}>
+              <Link to="/help" className="btn btn-outline" style={{ marginTop: 14, fontSize: 13, padding: '8px 16px', textDecoration: 'none' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>open_in_new</span>
                 View Handbook
-              </button>
+              </Link>
             </motion.div>
 
             {/* Tricolor accent card */}

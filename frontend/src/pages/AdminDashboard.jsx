@@ -71,10 +71,7 @@ export default function AdminDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    const role = localStorage.getItem('userRole');
-    if (role !== 'admin' && role !== 'authority') navigate('/dashboard');
-  }, [navigate]);
+  // Role guard handled by AdminRoute in App.jsx
 
   useEffect(() => {
     const fetch = async () => {
@@ -276,9 +273,8 @@ export default function AdminDashboard() {
         <footer className="page-footer">
           <p className="footer-tagline">© 2025 BhashaFlow Governance Initiative. All rights reserved.</p>
           <div className="footer-links">
-            <a href="#">Policy & Ethics</a>
-            <a href="#">API Docs</a>
-            <a href="#">Support</a>
+            <Link to="/help">Help Center</Link>
+            <Link to="/settings">Settings</Link>
           </div>
         </footer>
       </div>

@@ -246,7 +246,7 @@ export default function Settings() {
           </motion.section>
 
           <div className="settings-actions">
-            <button type="button" className="btn btn-tertiary">Cancel</button>
+            <button type="button" className="btn btn-tertiary" onClick={() => window.history.back()}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save Changes</button>
           </div>
         </form>
