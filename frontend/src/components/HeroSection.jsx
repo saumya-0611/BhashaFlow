@@ -113,11 +113,6 @@ export default function HeroSection() {
 
       {/* Main content */}
       <div className="hero-content">
-        <div className="hero-govt-badge">
-          <span className="hero-govt-badge-dot" />
-          Government of India Initiative · Digital Governance
-        </div>
-
         <h1 className="hero-title">
           Your Voice,{' '}
           <span className="hero-title-accent">Our Priority</span>
