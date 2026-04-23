@@ -262,9 +262,9 @@ export default function Dashboard() {
           <div className="footer-brand">BhashaFlow</div>
           <p className="footer-tagline">Empowering citizens through transparent governance.</p>
           <div className="footer-links">
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Contact Support</a>
+            <Link to="/help">Privacy Policy</Link>
+            <Link to="/help">Terms of Service</Link>
+            <Link to="/help">Contact Support</Link>
           </div>
         </footer>
       </div>
