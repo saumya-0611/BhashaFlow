@@ -50,6 +50,32 @@ app.use('/api/auth', googleAuthRoutes);     // Google OAuth (/google, /google/ca
 app.use('/api/grievance', grievanceRoutes); // Protected — citizen routes
 app.use('/api/admin', adminRoutes);         // Protected — authority/admin routes
 
+// ─── Public API ──────────────────────────────────────────────────
+import Grievance from './models/Grievance.js';
+app.get('/api/public/stats', async (req, res) => {
+  try {
+    const [total, byStatus, byCategory] = await Promise.all([
+      Grievance.countDocuments(),
+      Grievance.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      Grievance.aggregate([{ $group: { _id: '$category', count: { $sum: 1 } } }]),
+    ]);
+
+    const statusMap = {};
+    byStatus.forEach(item => { statusMap[item._id || 'unknown'] = item.count; });
+    const categoryMap = {};
+    byCategory.forEach(item => { categoryMap[item._id || 'unknown'] = item.count; });
+
+    res.status(200).json({
+      total,
+      by_status: statusMap,
+      by_category: categoryMap,
+    });
+  } catch (error) {
+    console.error('❌ Public stats error:', error.message);
+    res.status(500).json({ message: 'Failed to fetch public stats' });
+  }
+});
+
 // ─── Health Check ────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.status(200).json({

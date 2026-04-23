@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
@@ -41,6 +41,26 @@ const LANG_WORDS = [
   { word: 'ನಿಮ್ಮ ಧ್ವನಿ', lang: 'Kannada' },
   { word: 'तुमची आवाज', lang: 'Marathi' },
 ];
+
+/* Floating Indian script characters for background */
+const AUTH_FLOAT_CHARS = [
+  'अ', 'আ', 'இ', 'ప', 'ক', 'ಅ', 'മ', 'ੳ', 'ગ', 'ନ',
+  'ज', 'ர', 'స', 'ড', 'ह', 'ம', 'ب', 'ય', 'ள',
+  'भ', 'ত', 'ల', 'ಮ', 'ച', 'ع', 'ச', 'న', 'ভ',
+  'శ', 'ت', 'ર', 'ம', 'ദ', 'ন', 'क', 'ன', 'ద',
+];
+
+const AUTH_PARTICLES = Array.from({ length: 30 }, (_, i) => ({
+  id: i,
+  char: AUTH_FLOAT_CHARS[i % AUTH_FLOAT_CHARS.length],
+  x: Math.random() * 100,
+  y: Math.random() * 100,
+  size: 14 + Math.random() * 38,
+  opacity: 0.04 + Math.random() * 0.08,
+  driftDuration: 18 + Math.random() * 24,
+  driftDelay: Math.random() * -25,
+  parallaxFactor: 10 + Math.random() * 40,
+}));
 
 /* Ashoka Chakra SVG spokes */
 function AshokaChakreSVG() {
@@ -98,6 +118,44 @@ export default function CitizenAuth() {
   const [sPass, setSPass]   = useState("");
   const [sConf, setSConf]   = useState("");
   const [showP, setShowP]   = useState(false);
+
+  // Floating chars parallax
+  const leftPanelRef = useRef(null);
+  const authMousePos = useRef({ x: 0, y: 0 });
+  const authCurrentPos = useRef(AUTH_PARTICLES.map(() => ({ x: 0, y: 0 })));
+  const authParticleEls = useRef([]);
+  const authAnimFrame = useRef(null);
+
+  const onAuthMouseMove = useCallback((e) => {
+    if (!leftPanelRef.current) return;
+    const rect = leftPanelRef.current.getBoundingClientRect();
+    authMousePos.current = {
+      x: (e.clientX - rect.left) / rect.width - 0.5,
+      y: (e.clientY - rect.top) / rect.height - 0.5,
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const tick = () => {
+      if (!active) return;
+      const { x: mx, y: my } = authMousePos.current;
+      authParticleEls.current.forEach((el, i) => {
+        if (!el) return;
+        const p = AUTH_PARTICLES[i];
+        const targetX = mx * p.parallaxFactor;
+        const targetY = my * p.parallaxFactor;
+        const cur = authCurrentPos.current[i];
+        cur.x = lerp(cur.x, targetX, 0.06);
+        cur.y = lerp(cur.y, targetY, 0.06);
+        el.style.transform = `translate(${cur.x}px, ${cur.y}px)`;
+      });
+      authAnimFrame.current = requestAnimationFrame(tick);
+    };
+    authAnimFrame.current = requestAnimationFrame(tick);
+    return () => { active = false; cancelAnimationFrame(authAnimFrame.current); };
+  }, []);
   const [showC, setShowC]   = useState(false);
   const [loading, setLoading] = useState(false);
   const [oauthError, setOauthError] = useState("");
@@ -179,10 +237,32 @@ export default function CitizenAuth() {
     <motion.div className="auth-page" variants={pageVariants} initial="initial" animate="animate">
 
       {/* ── Left Panel ── */}
-      <motion.div className="auth-left" variants={panelVariants} initial="initial" animate="animate">
+      <motion.div className="auth-left" variants={panelVariants} initial="initial" animate="animate" ref={leftPanelRef} onMouseMove={onAuthMouseMove}>
         {/* Rotating Ashoka Chakra watermark */}
         <div className="auth-chakra-wrap">
           <AshokaChakreSVG />
+        </div>
+
+        {/* Floating Indian script characters */}
+        <div className="auth-float-canvas" aria-hidden="true">
+          {AUTH_PARTICLES.map((p, i) => (
+            <span
+              key={p.id}
+              ref={el => { authParticleEls.current[i] = el; }}
+              className="auth-float-char notranslate"
+              translate="no"
+              style={{
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                fontSize: `${p.size}px`,
+                opacity: p.opacity,
+                animationDuration: `${p.driftDuration}s`,
+                animationDelay: `${p.driftDelay}s`,
+              }}
+            >
+              {p.char}
+            </span>
+          ))}
         </div>
 
         <div className="auth-left-content">

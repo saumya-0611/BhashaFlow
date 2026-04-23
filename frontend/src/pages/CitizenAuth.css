@@ -102,6 +102,34 @@
   to   { transform: rotate(360deg); }
 }
 
+/* Floating characters canvas */
+.auth-float-canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.auth-float-char {
+  position: absolute;
+  font-family: 'Public Sans', 'Noto Sans Devanagari', sans-serif;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 1);
+  user-select: none;
+  will-change: transform;
+  animation: authCharDrift ease-in-out infinite alternate;
+  transition: transform 0.15s ease-out;
+}
+
+@keyframes authCharDrift {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  25%  { transform: translate(6px, -10px) rotate(2deg); }
+  50%  { transform: translate(-5px, -16px) rotate(-2deg); }
+  75%  { transform: translate(8px, -6px) rotate(3deg); }
+  100% { transform: translate(-3px, 5px) rotate(-1deg); }
+}
+
 /* Brand */
 .auth-logo-area {
   display: flex;
@@ -665,6 +693,11 @@
   .auth-features { display: none; }
   .auth-chakra-wrap { display: none; }
   .auth-right { padding: 36px 24px; }
+  
+  /* Reduce density of floating characters on mobile/tablet */
+  .auth-float-char:nth-child(odd) {
+    display: none;
+  }
 }
 
 @media (max-width: 480px) {
