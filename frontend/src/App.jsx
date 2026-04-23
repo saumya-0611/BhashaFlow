@@ -13,6 +13,8 @@ import GrievanceForm   from './pages/GrievanceForm';
 import ReviewGrievance from './pages/ReviewGrievance';
 import AIAnalysis      from './pages/AIAnalysis';
 import GrievanceDetail from './pages/GrievanceDetail';
+import Help            from './pages/Help';
+import Settings        from './pages/Settings';
 
 // Admin pages
 import AdminDashboard from './pages/AdminDashboard';
@@ -56,6 +58,12 @@ function App() {
           {/* Grievance detail (citizen view) */}
           <Route path="/grievance/:id"
             element={<ProtectedRoute><GrievanceDetail /></ProtectedRoute>} />
+
+          <Route path="/help"
+            element={<ProtectedRoute><Help /></ProtectedRoute>} />
+
+          <Route path="/settings"
+            element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 
           {/* ── Admin (protected + role check) ─────────────── */}
           <Route path="/admin"
