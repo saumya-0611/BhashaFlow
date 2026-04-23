@@ -14,6 +14,8 @@ const userSchema = new mongoose.Schema({
   preferred_language: { type: String, default: 'en-IN' },
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
+  isTwoFactorEnabled: { type: Boolean, default: false },
+  twoFactorSecret: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 
