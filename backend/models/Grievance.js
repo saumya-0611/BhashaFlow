@@ -11,7 +11,7 @@ const grievanceSchema = new mongoose.Schema({
   original_language: { type: String },
   input_type: {
     type: String,
-    enum: ['text', 'image', 'audio']
+    enum: ['text', 'image', 'audio', 'text+image', 'text+audio', 'image+audio', 'text+image+audio']
   },
   image_url: { type: String },
   audio_url: { type: String },

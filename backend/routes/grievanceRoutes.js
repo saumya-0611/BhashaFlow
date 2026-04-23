@@ -19,14 +19,11 @@ router.post('/ingest', auth, uploadCombined.fields([
   { name: 'image', maxCount: 1 },
   { name: 'audio', maxCount: 1 },
 ]), (req, res) => {
-  let inputType = 'text';
-  if (req.files?.['image']) {
-    inputType = 'image';
-    req.file = req.files['image'][0];
-  } else if (req.files?.['audio']) {
-    inputType = 'audio';
-    req.file = req.files['audio'][0];
-  }
+  const inputTypes = [];
+  if (req.body.text?.trim()) inputTypes.push('text');
+  if (req.files?.['image']?.[0]) inputTypes.push('image');
+  if (req.files?.['audio']?.[0]) inputTypes.push('audio');
+  const inputType = inputTypes.length ? inputTypes.join('+') : 'text';
   return processIngest(req, res, inputType);
 });
 
@@ -38,8 +35,10 @@ async function processIngest(req, res, inputType) {
       status:     'processing',
       input_type: inputType,
     };
-    if (inputType === 'image' && req.file) grievanceData.image_url = req.file.path;
-    if (inputType === 'audio' && req.file) grievanceData.audio_url = req.file.path;
+    const imageFile = req.files?.['image']?.[0];
+    const audioFile = req.files?.['audio']?.[0];
+    if (imageFile) grievanceData.image_url = imageFile.path;
+    if (audioFile) grievanceData.audio_url = audioFile.path;
 
     const grievance = new Grievance(grievanceData);
     await grievance.save();
@@ -48,17 +47,21 @@ async function processIngest(req, res, inputType) {
     const formData = new FormData();
     formData.append('grievance_id', grievance._id.toString());
 
-    if (inputType === 'text') {
+    if (req.body.text?.trim()) {
       formData.append('text', req.body.text || '');
-    } else if (inputType === 'image' && req.file) {
-      formData.append('image', fs.createReadStream(req.file.path), {
-        filename:    req.file.originalname,
-        contentType: req.file.mimetype,
+    }
+
+    if (imageFile) {
+      formData.append('image', fs.createReadStream(imageFile.path), {
+        filename:    imageFile.originalname,
+        contentType: imageFile.mimetype,
       });
-    } else if (inputType === 'audio' && req.file) {
-      formData.append('audio', fs.createReadStream(req.file.path), {
-        filename:    req.file.originalname,
-        contentType: req.file.mimetype,
+    }
+
+    if (audioFile) {
+      formData.append('audio', fs.createReadStream(audioFile.path), {
+        filename:    audioFile.originalname,
+        contentType: audioFile.mimetype,
       });
     }
 
