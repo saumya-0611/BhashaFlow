@@ -55,8 +55,70 @@
   margin: 0;
 }
 
-.admin-header-badge {
-  display: flex;
+@keyframes heroOrbBreath {
+  0%, 100% { transform: scale(1) translateY(0); opacity: 1; }
+  50% { transform: scale(1.15) translateY(-10px); opacity: 0.75; }
+}
+
+/* Green accent bottom-left */
+.dash-hero .dash-hero-text::before {
+  content: '';
+  position: absolute;
+  bottom: -60px;
+  left: -60px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(19,136,8,0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.dash-hero-text {
+  position: relative;
+  z-index: 1;
+}
+
+.dash-welcome {
+  font-family: 'Plus Jakarta Sans', var(--font-display);
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.3);
+}
+
+.name-highlight {
+  color: #ff9933;
+  position: relative;
+}
+
+.name-highlight::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff9933, transparent);
+  border-radius: 2px;
+}
+
+.dash-sub {
+  font-size: 14px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+.dash-hero-action {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.dash-cta {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
@@ -82,7 +144,7 @@
   z-index: 1;
 }
 
-.admin-stat-card {
+.stat-card {
   display: flex;
   flex-direction: column;
   padding: 22px 24px;
@@ -93,6 +155,9 @@
   transition: transform 0.25s ease, box-shadow 0.25s ease;
   position: relative;
   overflow: hidden;
+  transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s;
+  background: var(--surface-container-lowest);
+  border: 1px solid var(--outline-variant);
 }
 
 .admin-stat-card:hover {
@@ -192,13 +257,16 @@
   gap: 16px;
 }
 
-.category-item {
+.grievance-card:hover::before { background: linear-gradient(to bottom, #3949ab, #5c6bc0); width: 4px; }
+.grievance-card:hover::after  { opacity: 1; }
+
+.grievance-card-top {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.category-info {
+.grievance-card-bottom {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -212,7 +280,8 @@
   border-radius: 50%;
 }
 
-.category-bar-wrap {
+/* ── Aside ── */
+.dash-aside {
   display: flex;
   align-items: center;
   gap: 12px;

@@ -49,11 +49,13 @@ export default function TopBar() {
   const userName = localStorage.getItem('userName') || 'Citizen';
 
   return (
-    <header className="topbar glass">
+    <header className="topbar">
       <div className="breadcrumbs">
         {breadcrumbs.map((crumb, i) => (
           <span key={crumb.name} className="crumb-wrap">
-            {i > 0 && <span className="material-symbols-outlined separator">chevron_right</span>}
+            {i > 0 && (
+              <span className="material-symbols-outlined separator">chevron_right</span>
+            )}
             {crumb.path ? (
               <Link to={crumb.path} className="crumb link" onClick={(e) => handleBreadcrumbClick(e, crumb.path)}>{crumb.name}</Link>
             ) : (
@@ -68,6 +70,7 @@ export default function TopBar() {
           <span className="material-symbols-outlined">notifications</span>
           <span className="notif-dot" />
         </button>
+
         <div className="user-profile">
           <div className="avatar">{userName.charAt(0).toUpperCase()}</div>
           <span className="username">{userName}</span>
