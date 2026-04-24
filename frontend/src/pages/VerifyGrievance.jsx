@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/api';
 import StepIndicator from '../components/StepIndicator';
 import NavigationGuard from '../components/NavigationGuard';
+import PopupModal from '../components/PopupModal';
 import './VerifyGrievance.css';
 
 const pageVariants = {
@@ -42,6 +43,11 @@ export default function VerifyGrievance() {
   // ── Action state ──────────────────────────────────────────────
   const [loading, setLoading]   = useState(false);
   const [answered, setAnswered] = useState(false);
+
+  // Popup state
+  const [popup, setPopup] = useState({ open: false, type: 'info', title: '', message: '' });
+  const closePopup = () => setPopup(p => ({ ...p, open: false }));
+  const showPopup = (type, title, message) => setPopup({ open: true, type, title, message });
 
   // ── Fallback fetch if navigated directly without state ────────
   useEffect(() => {
@@ -90,7 +96,7 @@ export default function VerifyGrievance() {
       }
     } catch (err) {
       console.error('Confirm error:', err);
-      alert('Something went wrong. Please try again.');
+      showPopup('error', 'Something Went Wrong', 'Could not process your response. Please try again.');
       setLoading(false);
       setAnswered(false);
     }
@@ -300,6 +306,15 @@ export default function VerifyGrievance() {
           )}
         </AnimatePresence>
       </motion.div>
+
+      <PopupModal
+        open={popup.open}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        hideCancel
+      />
     </motion.div>
   );
 }

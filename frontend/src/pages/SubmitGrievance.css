@@ -24,9 +24,10 @@
 
 .submit-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 32px;
-  max-width: 960px;
+  grid-template-columns: 1fr 300px;
+  gap: 36px;
+  width: 100%;
+  max-width: 1100px;
 }
 
 .submit-main { display: flex; flex-direction: column; gap: 20px; }
@@ -76,9 +77,9 @@
 /* Textarea */
 .grievance-textarea {
   resize: vertical;
-  min-height: 190px;
+  min-height: 260px;
   border-radius: 14px;
-  padding: 18px;
+  padding: 18px 20px;
   font-size: 14px;
   line-height: 1.8;
   font-family: 'Plus Jakarta Sans', var(--font-body);
@@ -88,6 +89,7 @@
   color: var(--on-surface);
   transition: all 0.2s;
   outline: none;
+  box-sizing: border-box;
 }
 
 .grievance-textarea:focus {
@@ -204,13 +206,19 @@
 .upload-zone {
   border: 2px dashed var(--outline-variant);
   border-radius: 16px;
-  padding: 30px 20px;
+  padding: 36px 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.22s ease;
   background: var(--surface-container-lowest);
   position: relative;
   overflow: hidden;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .upload-zone:hover,
@@ -355,7 +363,25 @@
   line-height: 1.65;
 }
 
+/* ── Tablet ── */
 @media (max-width: 900px) {
-  .submit-grid { grid-template-columns: 1fr; }
+  .submit-grid { grid-template-columns: 1fr; gap: 24px; }
   .submit-aside { display: none; }
+}
+
+/* ── Phone ── */
+@media (max-width: 600px) {
+  .submit-page { padding-bottom: 24px; }
+  .submit-header h1 { font-size: 1.4rem; }
+  .submit-header p { font-size: 13px; }
+  .submit-grid { gap: 16px; }
+  .grievance-textarea { min-height: 200px; padding: 14px 16px; font-size: 14px; }
+  .submit-tabs { width: 100%; }
+  .submit-tab { padding: 9px 16px; font-size: 12px; }
+  .voice-zone { padding: 24px 16px; }
+  .voice-timer { font-size: 2rem; }
+  .voice-record-btn { width: 58px; height: 58px; }
+  .upload-zone { padding: 24px 16px; min-height: 110px; }
+  .submit-btn { padding: 14px 20px; font-size: 14px; }
+  .security-badge { font-size: 11px; padding: 8px 12px; }
 }

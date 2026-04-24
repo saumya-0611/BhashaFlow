@@ -321,4 +321,52 @@ router.post('/:id/translate-analysis', auth, async (req, res) => {
   }
 });
 
+// ─── POST /api/grievance/:id/feedback ───────────────────────────
+// Called when citizen clicks Yes/No from resolution email link.
+router.post('/:id/feedback', auth, async (req, res) => {
+  try {
+    const { result } = req.body;
+    if (!['resolved', 'not_resolved'].includes(result)) {
+      return res.status(400).json({ message: 'result must be "resolved" or "not_resolved"' });
+    }
+
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+
+    grievance.citizen_feedback = result;
+
+    if (result === 'resolved') {
+      const oldStatus = grievance.status;
+      grievance.status = 'closed';
+      grievance.resolved_at = grievance.resolved_at || new Date();
+      await grievance.save();
+      await StatusUpdate.create({
+        grievance_id: grievance._id,
+        old_status: oldStatus,
+        new_status: 'closed',
+        changed_by: 'citizen_feedback',
+        remark: 'Citizen confirmed: issue is resolved.',
+      });
+    } else {
+      const oldStatus = grievance.status;
+      if (grievance.status === 'resolved' || grievance.status === 'closed') {
+        grievance.status = 'in_progress';
+      }
+      await grievance.save();
+      await StatusUpdate.create({
+        grievance_id: grievance._id,
+        old_status: oldStatus,
+        new_status: grievance.status,
+        changed_by: 'citizen_feedback',
+        remark: 'Citizen reported: issue is NOT resolved. Needs further attention.',
+      });
+    }
+
+    res.status(200).json({ success: true, result, status: grievance.status });
+  } catch (error) {
+    console.error('❌ Citizen feedback error:', error.message);
+    res.status(500).json({ message: 'Failed to record feedback', error: error.message });
+  }
+});
+
 export default router;

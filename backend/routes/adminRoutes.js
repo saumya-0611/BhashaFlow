@@ -1,8 +1,11 @@
 import express from 'express';
+import axios from 'axios';
 import auth from '../middleware/auth.js';
 import Grievance from '../models/Grievance.js';
 import AiAnalysis from '../models/AiAnalysis.js';
 import StatusUpdate from '../models/StatusUpdate.js';
+import User from '../models/User.js';
+import { sendResolutionEmail } from '../utils/mailer.js';
 
 const router = express.Router();
 
@@ -230,6 +233,54 @@ router.get('/ai-insights', async (req, res) => {
   } catch (error) {
     console.error('❌ AI insights error:', error.message);
     res.status(500).json({ message: 'Failed to fetch AI insights', error: error.message });
+  }
+});
+
+// ─── POST /api/admin/grievance/:id/notify-citizen ───────────────
+// Called by frontend after admin resolves. Translates remark + sends email.
+router.post('/grievance/:id/notify-citizen', async (req, res) => {
+  try {
+    const { remark, status } = req.body;
+    const grievance = await Grievance.findById(req.params.id);
+    if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
+
+    const user = await User.findById(grievance.user_id);
+    if (!user?.email) return res.status(200).json({ message: 'No citizen email on record, skipping.' });
+
+    const aiAnalysis = await AiAnalysis.findOne({ grievance_id: grievance._id });
+    const detectedLang = aiAnalysis?.detected_language || grievance.original_language || 'en-IN';
+    const isEnglish = detectedLang === 'en-IN' || detectedLang === 'en';
+
+    let translatedRemark = remark;
+    if (!isEnglish && remark) {
+      try {
+        const AI_ENGINE_URL = process.env.AI_ENGINE_URL || 'http://ai-engine:8000';
+        const tr = await axios.post(
+          `${AI_ENGINE_URL}/translate`,
+          { text: remark, source_language_code: 'en-IN', target_language_code: detectedLang },
+          { timeout: 15000 }
+        );
+        translatedRemark = tr.data.translated_text || remark;
+      } catch {
+        console.warn('⚠ Translation failed, sending English remark only');
+        translatedRemark = remark;
+      }
+    }
+
+    await sendResolutionEmail(
+      user.email,
+      grievance._id,
+      grievance.category || 'General',
+      grievance.title || 'Your Grievance',
+      remark,
+      translatedRemark,
+      detectedLang
+    );
+
+    res.status(200).json({ message: 'Resolution email sent successfully.' });
+  } catch (error) {
+    console.error('❌ Notify citizen error:', error.message);
+    res.status(500).json({ message: 'Failed to send email', error: error.message });
   }
 });
 

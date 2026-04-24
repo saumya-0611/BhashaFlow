@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import PopupModal from '../components/PopupModal';
 import api from '../utils/api';
 import './CitizenAuth.css';
 
@@ -161,6 +162,11 @@ export default function CitizenAuth() {
   const [oauthError, setOauthError] = useState("");
   const [modalContent, setModalContent] = useState(null);
 
+  // Popup modal state
+  const [popup, setPopup] = useState({ open: false, type: 'info', title: '', message: '' });
+  const closePopup = () => setPopup(p => ({ ...p, open: false }));
+  const showPopup = (type, title, message) => setPopup({ open: true, type, title, message });
+
   const openModal = (e, type) => {
     e.preventDefault();
     setModalContent(type);
@@ -179,6 +185,10 @@ export default function CitizenAuth() {
     localStorage.setItem('token',    data.token);
     localStorage.setItem('userName', data.user.name);
     localStorage.setItem('userRole', data.user.role);
+    localStorage.setItem('userEmail', data.user.email || '');
+    if (data.user.preferred_language) {
+      localStorage.setItem('language', data.user.preferred_language);
+    }
   };
 
   const redirectByRole = (role) => {
@@ -194,7 +204,7 @@ export default function CitizenAuth() {
       saveSession(data);
       redirectByRole(data.user.role);
     } catch (err) {
-      alert(err.response?.data?.message || "Invalid credentials");
+      showPopup('error', 'Login Failed', err.response?.data?.message || 'Invalid credentials. Please check your email and password.');
     } finally {
       setLoading(false);
     }
@@ -205,10 +215,10 @@ export default function CitizenAuth() {
     setLoading(true);
     try {
       const { data } = await api.post('/api/auth/forgot-password', { email: fEmail });
-      alert(data.message || "Password reset link sent!");
+      showPopup('success', 'Reset Link Sent', data.message || 'A password reset link has been sent to your email address.');
       setMode("login");
     } catch (err) {
-      alert("Forgot password failed: " + (err.response?.data?.message || "Server Error"));
+      showPopup('error', 'Request Failed', err.response?.data?.message || 'Failed to send reset link. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -216,14 +226,14 @@ export default function CitizenAuth() {
 
   const onSignup = async (e) => {
     e.preventDefault();
-    if (sPass !== sConf) { alert("Passwords don't match"); return; }
+    if (sPass !== sConf) { showPopup('warning', 'Passwords Don\'t Match', 'Please make sure both password fields are identical.'); return; }
     setLoading(true);
     try {
       await api.post('/api/auth/register', { name: sName, email: sEmail, password: sPass });
-      alert("Account created! Please sign in.");
+      showPopup('success', 'Account Created!', 'Your account has been created successfully. Please sign in with your credentials.');
       setMode("login");
     } catch (err) {
-      alert("Registration failed: " + (err.response?.data?.message || "Server Error"));
+      showPopup('error', 'Registration Failed', err.response?.data?.message || 'Could not create account. The email may already be registered.');
     } finally {
       setLoading(false);
     }
@@ -686,6 +696,16 @@ export default function CitizenAuth() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Universal popup */}
+      <PopupModal
+        open={popup.open}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        hideCancel
+      />
     </motion.div>
   );
 }

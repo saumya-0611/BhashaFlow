@@ -1,14 +1,16 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
+import PopupModal from './PopupModal';
 import './TopBar.css';
 
 export default function TopBar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [showNotif, setShowNotif] = useState(false);
+  const [showNotif, setShowNotif]         = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount]     = useState(0);
+  const [leaveConfirm, setLeaveConfirm]   = useState({ open: false, pendingPath: null });
 
   // KEEP THIS: Protection logic
   const isFlowPath = (path) =>
@@ -19,20 +21,20 @@ export default function TopBar() {
     return match ? match[2] : null;
   };
 
-  const handleBreadcrumbClick = async (e, path) => {
+  const handleBreadcrumbClick = (e, path) => {
     if (!isFlowPath(location.pathname) || isFlowPath(path)) return;
-
     e.preventDefault();
-    const shouldLeave = window.confirm('If you leave now, your in-progress grievance will be deleted. Continue?');
-    if (!shouldLeave) return;
+    setLeaveConfirm({ open: true, pendingPath: path });
+  };
 
+  const handleLeaveConfirmed = async () => {
+    const { pendingPath } = leaveConfirm;
+    setLeaveConfirm({ open: false, pendingPath: null });
     const grievanceId = getFlowGrievanceId();
     try {
-      if (grievanceId) {
-        await api.delete(`/api/grievance/${grievanceId}`);
-      }
+      if (grievanceId) await api.delete(`/api/grievance/${grievanceId}`);
     } catch { /* best effort */ }
-    navigate(path);
+    navigate(pendingPath);
   };
   
   // KEEP YASH'S VERSION: Better names
@@ -99,6 +101,7 @@ export default function TopBar() {
   }, [userRole]);
 
   return (
+    <>
     <header className="topbar">
       <div className="breadcrumbs">
         {breadcrumbs.map((crumb, i) => (
@@ -147,5 +150,18 @@ export default function TopBar() {
         </div>
       </div>
     </header>
+
+    {/* Leave flow confirm popup */}
+    <PopupModal
+      open={leaveConfirm.open}
+      type="confirm"
+      title="Leave Grievance?"
+      message="If you leave now, your in-progress grievance will be deleted. This cannot be undone."
+      confirmLabel="Yes, Leave"
+      cancelLabel="Stay Here"
+      onConfirm={handleLeaveConfirmed}
+      onClose={() => setLeaveConfirm({ open: false, pendingPath: null })}
+    />
+    </>
   );
 }

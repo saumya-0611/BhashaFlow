@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
 import StepIndicator from '../components/StepIndicator';
+import PopupModal from '../components/PopupModal';
 import api from '../utils/api';
 import './SubmitGrievance.css';
 
@@ -61,6 +62,11 @@ export default function SubmitGrievance() {
 
   const [submitting, setSubmitting] = useState(false);
 
+  // Popup modal state
+  const [popup, setPopup] = useState({ open: false, type: 'info', title: '', message: '' });
+  const closePopup = () => setPopup(p => ({ ...p, open: false }));
+  const showPopup = (type, title, message) => setPopup({ open: true, type, title, message });
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -78,7 +84,7 @@ export default function SubmitGrievance() {
       setRecordingTime(0);
       timerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
     } catch (err) {
-      alert('Microphone access denied: ' + err.message);
+      showPopup('error', 'Microphone Access Denied', err.message || 'Please allow microphone access in your browser settings to use voice input.');
     }
   };
 
@@ -115,7 +121,10 @@ export default function SubmitGrievance() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateInput()) { alert('Please provide input for the selected mode.'); return; }
+    if (!validateInput()) {
+      showPopup('warning', 'Input Required', 'Please type your grievance or record a voice message before submitting.');
+      return;
+    }
     const formData = new FormData();
     if (activeTab === 'text')  formData.append('text', text);
     if (activeTab === 'voice') formData.append('audio', audioBlob, 'recording.webm');
@@ -125,7 +134,16 @@ export default function SubmitGrievance() {
       const res = await api.post('/api/grievance/ingest', formData);
       navigate(`/verify/${res.data.grievance_id}`, { state: res.data });
     } catch (err) {
-      alert(err.response?.data?.message || 'Submission failed');
+      const errorCode = err.response?.data?.error;
+      if (errorCode === 'AI_ENGINE_UNAVAILABLE' || err.response?.status === 503) {
+        showPopup(
+          'warning',
+          'AI Engine is Busy',
+          'Many citizens are currently submitting grievances. Our AI is processing them — please wait a moment and try again. Your grievance has been saved safely.'
+        );
+      } else {
+        showPopup('error', 'Submission Failed', err.response?.data?.message || 'Something went wrong. Please try again in a moment.');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -342,6 +360,16 @@ export default function SubmitGrievance() {
           </div>
         </form>
       </motion.div>
+
+      {/* Universal popup modal */}
+      <PopupModal
+        open={popup.open}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        hideCancel
+      />
     </DashboardLayout>
   );
 }

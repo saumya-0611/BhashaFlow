@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useParams } from 'react-router-dom';
+import PopupModal from '../components/PopupModal';
 import api from '../utils/api';
 import './CitizenAuth.css';
 
@@ -19,19 +20,24 @@ export default function ResetPassword() {
   const { token } = useParams();
   const navigate = useNavigate();
 
+  // Popup state
+  const [popup, setPopup] = useState({ open: false, type: 'info', title: '', message: '' });
+  const closePopup = () => setPopup(p => ({ ...p, open: false }));
+  const showPopup = (type, title, message) => setPopup({ open: true, type, title, message });
+
   const onReset = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
-      alert("Passwords don't match");
+      showPopup('warning', 'Passwords Don\'t Match', 'Please make sure both password fields are identical.');
       return;
     }
     setLoading(true);
     try {
       const { data } = await api.post(`/api/auth/reset-password/${token}`, { password });
-      alert(data.message || "Password has been successfully reset. Please log in.");
-      navigate("/auth");
+      showPopup('success', 'Password Reset', data.message || 'Your password has been reset successfully. Redirecting to login…');
+      setTimeout(() => navigate('/auth'), 2500);
     } catch (err) {
-      alert("Reset password failed: " + (err.response?.data?.message || "Server Error"));
+      showPopup('error', 'Reset Failed', err.response?.data?.message || 'Could not reset password. The link may have expired.');
     } finally {
       setLoading(false);
     }
@@ -125,6 +131,15 @@ export default function ResetPassword() {
           </form>
         </motion.div>
       </div>
+
+      <PopupModal
+        open={popup.open}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        hideCancel
+      />
     </motion.div>
   );
 }

@@ -42,6 +42,16 @@ html, body, #root {
   max-width: 1400px;
 }
 
+/* ── Mobile: sidebar is off-screen, remove margin and fix topbar ── */
+@media (max-width: 768px) {
+  .layout-main {
+    margin-left: 0;
+  }
+  .layout-content {
+    padding: var(--space-6) var(--space-4);
+  }
+}
+
 /* ═══════════════════════════════════════════════════════
    FOOTER (shared across authenticated pages)
    ═══════════════════════════════════════════════════════ */

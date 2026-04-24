@@ -1,61 +1,105 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import DashboardLayout from '../components/DashboardLayout';
+import PopupModal from '../components/PopupModal';
 import api from '../utils/api';
 import './GrievanceDetail.css';
 
 export default function GrievanceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const role = localStorage.getItem('userRole') || 'citizen';
   const isAdmin = role === 'admin' || role === 'authority';
 
-  const [grievance, setGrievance]       = useState(null);
-  // FIX: backend returns ai_analysis and status_timeline as separate top-level keys
-  const [aiAnalysis, setAiAnalysis]     = useState(null);
-  const [statusTimeline, setTimeline]   = useState([]);
-  const [loading, setLoading]           = useState(true);
+  const [grievance, setGrievance]     = useState(null);
+  const [aiAnalysis, setAiAnalysis]   = useState(null);
+  const [statusTimeline, setTimeline] = useState([]);
+  const [loading, setLoading]         = useState(true);
 
-  const [remark, setRemark]             = useState('');
-  const [replyStatus, setReplyStatus]   = useState('resolved');
-  const [updating, setUpdating]         = useState(false);
+  const [remark, setRemark]           = useState('');
+  const [replyStatus, setReplyStatus] = useState('resolved');
+  const [updating, setUpdating]       = useState(false);
+  const [sendingMail, setSendingMail] = useState(false);
 
+  // Popup modal
+  const [popup, setPopup] = useState({ open: false, type: 'info', title: '', message: '' });
+  const closePopup  = () => setPopup(p => ({ ...p, open: false }));
+  const showPopup   = (type, title, message) => setPopup({ open: true, type, title, message });
+
+  // ── Fetch grievance detail ────────────────────────────────────
+  const fetchDetail = async () => {
+    try {
+      const route = isAdmin ? `/api/admin/grievance/${id}` : `/api/grievance/${id}`;
+      const res = await api.get(route);
+      setGrievance(res.data.grievance);
+      setAiAnalysis(res.data.ai_analysis || null);
+      setTimeline(res.data.status_timeline || []);
+    } catch (err) {
+      showPopup('error', 'Failed to Load', err.response?.data?.message || 'Could not load grievance details.');
+      setTimeout(() => navigate(-1), 2000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchDetail(); }, [id, isAdmin]);
+
+  // ── Citizen feedback from email link (?feedback=resolved|not_resolved) ──
   useEffect(() => {
-    const fetchDetail = async () => {
+    const feedback = searchParams.get('feedback');
+    if (!feedback || !id) return;
+
+    const sendFeedback = async () => {
       try {
-        // FIX: use correct route based on role
-        const route = isAdmin ? `/api/admin/grievance/${id}` : `/api/grievance/${id}`;
-        const res = await api.get(route);
-        // FIX: backend wraps everything: { grievance, ai_analysis, status_timeline }
-        setGrievance(res.data.grievance);
-        setAiAnalysis(res.data.ai_analysis || null);
-        setTimeline(res.data.status_timeline || []);
-      } catch (err) {
-        alert(err.response?.data?.message || 'Failed to fetch grievance');
-        navigate(-1);
-      } finally {
-        setLoading(false);
+        await api.post(`/api/grievance/${id}/feedback`, { result: feedback });
+        if (feedback === 'resolved') {
+          showPopup('success', 'Thank You!', 'We\'re glad your issue is resolved. This grievance has been marked as closed. Thank you for using BhashaFlow.');
+        } else {
+          showPopup('warning', 'Feedback Noted', 'We\'ve notified the concerned authority that your issue is still pending. They will follow up shortly.');
+        }
+        fetchDetail(); // Refresh to show updated status
+      } catch {
+        // Silent — don't bother user if feedback API fails
       }
     };
-    fetchDetail();
-  }, [id, isAdmin, navigate]);
+    sendFeedback();
+  }, [searchParams, id]);
 
+  // ── Admin resolve action ──────────────────────────────────────
   const handleAdminReply = async () => {
-    if (!remark.trim()) return alert('Please enter a response.');
+    if (!remark.trim()) {
+      showPopup('warning', 'Response Required', 'Please type your official response / remark before submitting.');
+      return;
+    }
     setUpdating(true);
     try {
       await api.put(`/api/admin/grievance/${id}/status`, {
         status: replyStatus,
         remark,
       });
-      alert('Status updated successfully');
-      // Refresh detail
+      // If marking resolved/closed → trigger email to citizen
+      if (replyStatus === 'resolved' || replyStatus === 'closed') {
+        setSendingMail(true);
+        try {
+          await api.post(`/api/admin/grievance/${id}/notify-citizen`, { remark, status: replyStatus });
+        } catch {
+          // Email sending is best-effort; don't block the admin
+        } finally {
+          setSendingMail(false);
+        }
+        showPopup('success', 'Resolved & Citizen Notified', 'Status updated and a resolution email has been sent to the citizen in their native language.');
+      } else {
+        showPopup('success', 'Status Updated', 'The grievance status has been updated successfully.');
+      }
+      // Refresh
       const res = await api.get(`/api/admin/grievance/${id}`);
       setGrievance(res.data.grievance);
       setTimeline(res.data.status_timeline || []);
       setRemark('');
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update status');
+      showPopup('error', 'Update Failed', err.response?.data?.message || 'Could not update grievance status. Please try again.');
     } finally {
       setUpdating(false);
     }
@@ -64,7 +108,13 @@ export default function GrievanceDetail() {
   if (loading) {
     return (
       <DashboardLayout isAdmin={isAdmin}>
-        <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <motion.div
+            style={{ width: 40, height: 40, border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%' }}
+            animate={{ rotate: 360 }}
+            transition={{ repeat: Infinity, duration: 0.9, ease: 'linear' }}
+          />
+        </div>
       </DashboardLayout>
     );
   }
@@ -77,10 +127,10 @@ export default function GrievanceDetail() {
     );
   }
 
-  // FIX: category, priority, title live on Grievance; language + keywords on AiAnalysis
   const detectedLanguage = aiAnalysis?.detected_language || grievance.original_language || 'Native';
-  const keywords         = aiAnalysis?.keywords          || [];
-  const englishSummary   = aiAnalysis?.english_summary   || grievance.title || '';
+  const keywords         = aiAnalysis?.keywords || [];
+  const englishSummary   = aiAnalysis?.english_summary || grievance.title || '';
+  const citizenNotResolved = grievance.citizen_feedback === 'not_resolved';
 
   return (
     <DashboardLayout isAdmin={isAdmin}>
@@ -100,6 +150,32 @@ export default function GrievanceDetail() {
             </div>
           </div>
         </section>
+
+        {/* Admin: Citizen "Not Resolved" Alert Banner */}
+        {isAdmin && citizenNotResolved && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              background: 'rgba(239,83,80,0.1)',
+              border: '1.5px solid rgba(239,83,80,0.4)',
+              borderRadius: '14px',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '24px',
+            }}
+          >
+            <span className="material-symbols-outlined filled" style={{ color: '#ef5350', fontSize: '24px', flexShrink: 0 }}>report</span>
+            <div>
+              <strong style={{ color: '#ef5350', fontSize: '14px' }}>⚠ Citizen Reported: Issue NOT Resolved</strong>
+              <p style={{ fontSize: '13px', color: 'var(--on-surface-variant)', margin: '4px 0 0' }}>
+                The citizen has responded to the resolution email saying their issue is still pending. Please review and follow up.
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         <div className="detail-grid">
           {/* Left Column */}
@@ -126,7 +202,6 @@ export default function GrievanceDetail() {
                 </div>
               )}
 
-              {/* FIX: image_url / audio_url are the actual Grievance fields */}
               {grievance.image_url && (
                 <div className="attachment-row" style={{ marginTop: '16px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--outline)' }}>image</span>
@@ -154,7 +229,7 @@ export default function GrievanceDetail() {
                   <span className="material-symbols-outlined">reply_all</span>
                   <h2>Official Response</h2>
                 </div>
-                <p className="response-hint">Reply to the citizen and update the status.</p>
+                <p className="response-hint">Reply to the citizen and update the status. If you mark as Resolved, a confirmation email will be sent to the citizen in their native language.</p>
 
                 <div style={{ marginBottom: '16px' }}>
                   <label className="input-label" style={{ display: 'block', marginBottom: '8px' }}>
@@ -162,14 +237,14 @@ export default function GrievanceDetail() {
                   </label>
                   <select className="input-field" value={replyStatus} onChange={e => setReplyStatus(e.target.value)}>
                     <option value="in_progress">Mark as In Progress</option>
-                    <option value="resolved">Mark as Resolved</option>
+                    <option value="resolved">Mark as Resolved ✓ (sends email to citizen)</option>
                     <option value="closed">Mark as Closed</option>
                   </select>
                 </div>
 
                 <textarea
                   className="input-field response-textarea"
-                  placeholder="Type your official response / remark here."
+                  placeholder="Type your official response / remark here. This will be sent to the citizen."
                   rows={5}
                   value={remark}
                   onChange={e => setRemark(e.target.value)}
@@ -177,11 +252,11 @@ export default function GrievanceDetail() {
                 <button
                   className="btn btn-primary"
                   onClick={handleAdminReply}
-                  disabled={updating}
-                  style={{ alignSelf: 'flex-start', marginTop: 'var(--space-4)' }}
+                  disabled={updating || sendingMail}
+                  style={{ alignSelf: 'flex-start', marginTop: 'var(--space-4)', display: 'flex', alignItems: 'center', gap: 8 }}
                 >
-                  {updating ? 'Updating...' : 'Send Response'}
-                  {!updating && <span className="material-symbols-outlined">send</span>}
+                  {updating ? 'Updating…' : sendingMail ? 'Sending Email…' : 'Send Response'}
+                  {!updating && !sendingMail && <span className="material-symbols-outlined">send</span>}
                 </button>
               </section>
             )}
@@ -194,13 +269,11 @@ export default function GrievanceDetail() {
               </div>
               <p className="ai-insight-text">
                 <strong>Category:</strong> {grievance.category || 'General'} &nbsp;|&nbsp;
-                {/* FIX: confidence_score lives on AiAnalysis */}
                 <strong>Confidence:</strong> {aiAnalysis?.confidence_score
                   ? `${Math.round(aiAnalysis.confidence_score * 100)}%`
                   : 'N/A'
                 }
               </p>
-              {/* FIX: keywords from aiAnalysis, not grievance */}
               {keywords.length > 0 && (
                 <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {keywords.map(kw => (
@@ -214,7 +287,6 @@ export default function GrievanceDetail() {
           {/* Right Column — Timeline & Meta */}
           <aside className="detail-aside">
 
-            {/* FIX: use statusTimeline state (from status_timeline key in response) */}
             <div className="timeline-card card">
               <h3>Audit Trail</h3>
               <div className="timeline">
@@ -225,7 +297,6 @@ export default function GrievanceDetail() {
                       {i < statusTimeline.length - 1 && <div className="timeline-line"></div>}
                     </div>
                     <div className="timeline-content">
-                      {/* FIX: StatusUpdate fields are old_status, new_status, changed_by, updated_at */}
                       <p className="timeline-event">
                         {t.old_status} → {t.new_status}
                       </p>
@@ -245,7 +316,6 @@ export default function GrievanceDetail() {
                     </div>
                     <div className="timeline-content">
                       <p className="timeline-event">Submission Received</p>
-                      {/* FIX: correct field is submitted_at */}
                       <span className="timeline-date">
                         {new Date(grievance.submitted_at || Date.now()).toLocaleString()}
                       </span>
@@ -261,7 +331,6 @@ export default function GrievanceDetail() {
                 <span className="material-symbols-outlined" style={{ color: 'var(--emerald)' }}>location_on</span>
                 <h3>Location</h3>
               </div>
-              {/* FIX: location fields are flat on Grievance: state, district, pincode, address */}
               <p className="geo-text">
                 {grievance.address
                   ? `${grievance.address}, ${grievance.district || ''}, ${grievance.state || ''} ${grievance.pincode || ''}`
@@ -281,14 +350,31 @@ export default function GrievanceDetail() {
                   <span className="material-symbols-outlined" style={{ color: 'var(--primary)' }}>person</span>
                   <h3>Citizen Details</h3>
                 </div>
-                {/* FIX: citizen contact stored directly on Grievance as user_name, user_phone */}
                 <p><strong>Name:</strong> {grievance.user_name || 'Anonymous'}</p>
                 <p><strong>Phone:</strong> {grievance.user_phone || 'N/A'}</p>
+                {grievance.citizen_feedback && (
+                  <p style={{ marginTop: 8 }}>
+                    <strong>Feedback:</strong>{' '}
+                    <span style={{ color: grievance.citizen_feedback === 'resolved' ? 'var(--emerald)' : '#ef5350', fontWeight: 700 }}>
+                      {grievance.citizen_feedback === 'resolved' ? '✅ Resolved' : '❌ Not Resolved'}
+                    </span>
+                  </p>
+                )}
               </div>
             )}
           </aside>
         </div>
       </div>
+
+      {/* Universal popup modal */}
+      <PopupModal
+        open={popup.open}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        hideCancel
+      />
     </DashboardLayout>
   );
 }

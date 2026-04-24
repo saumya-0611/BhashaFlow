@@ -8,7 +8,7 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import PopupModal from '../components/PopupModal';
 import './AIAnalysis.css';
 
 // Fix Leaflet's default icon path issues in React
@@ -160,40 +160,143 @@ export default function AIAnalysis() {
   const handleDownloadSummary = async () => {
     setIsDownloading(true);
     try {
-      if (!translated && detected_language !== 'en-IN' && detected_language !== 'en') {
-        const t = await fetchTranslation();
-        if (t) setIsNative(true);
-      } else if (detected_language !== 'en-IN' && detected_language !== 'en') {
-        setIsNative(true);
+      // Fetch native translation if not already loaded
+      let nativeData = translated;
+      const isNonEnglish = detected_language !== 'en-IN' && detected_language !== 'en';
+      if (isNonEnglish && !nativeData) {
+        nativeData = await fetchTranslation();
       }
 
-      setTimeout(async () => {
-        const element = document.getElementById('ai-analysis-content');
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#0f172a', // Match theme dark background
-        });
-        
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`grievance_summary_${id}.pdf`);
-        
-        // Reset to English after capture if desired, or let them stay
-        // setIsNative(false); 
-        setIsDownloading(false);
-      }, 500);
+      const reportData = (isNonEnglish && nativeData) ? {
+        summary: nativeData.summary || english_summary,
+        category: nativeData.category || category,
+        steps: nativeData.steps?.length ? nativeData.steps : procedure_steps,
+        offices: nativeData.offices?.length ? nativeData.offices : nearby_offices.map(o => o.name || o),
+      } : {
+        summary: english_summary,
+        category: category,
+        steps: procedure_steps,
+        offices: nearby_offices.map(o => o.name || o),
+      };
 
+      const refNo = id ? `GRV-${String(id).slice(-8).toUpperCase()}` : 'GRV-XXXXXXXX';
+      const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+      const catDisplay = String(reportData.category || 'General').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+      // Build an off-screen HTML report the browser can render with proper Unicode fonts
+      const pdfHtml = document.createElement('div');
+      pdfHtml.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;background:#fff;color:#1a1a2e;font-family:"Noto Sans","Plus Jakarta Sans",Arial,sans-serif;padding:0;box-sizing:border-box;';
+
+      const stepsHtml = reportData.steps?.length > 0
+        ? `<div style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">Next Steps</div>
+            </div>
+            <ol style="font-size:13px;line-height:1.8;color:#323246;padding-left:30px;margin:0;">
+              ${reportData.steps.map(s => `<li style="margin-bottom:4px;">${s}</li>`).join('')}
+            </ol>
+          </div>` : '';
+
+      const officesHtml = reportData.offices?.length > 0
+        ? `<div style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">Nearby Offices</div>
+            </div>
+            <ul style="font-size:13px;line-height:1.8;color:#323246;padding-left:30px;margin:0;">
+              ${reportData.offices.map(o => `<li>${String(o)}</li>`).join('')}
+            </ul>
+          </div>` : '';
+
+      const portalsHtml = portalsArray.length > 0
+        ? `<div style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">Relevant Government Portals</div>
+            </div>
+            ${portalsArray.map(p => `
+              <div style="padding-left:12px;margin-bottom:8px;">
+                <div style="font-weight:700;color:#1a237e;font-size:13px;">${p.name || 'Portal'}</div>
+                ${p.url ? `<div style="font-size:11px;color:#646482;">${p.url}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>` : '';
+
+      pdfHtml.innerHTML = `
+        <div style="background:linear-gradient(135deg,#1a237e,#283593);padding:28px 36px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:18px;font-weight:800;letter-spacing:-0.02em;">BhashaFlow — Citizen Grievance Portal</div>
+            <div style="font-size:11px;opacity:0.8;margin-top:4px;">Multilingual AI-Powered Grievance Management System | Student Initiative</div>
+          </div>
+          <div style="text-align:right;font-size:11px;opacity:0.85;">
+            <div>Ref: ${refNo}</div>
+            <div>Date: ${dateStr}</div>
+          </div>
+        </div>
+        <div style="background:#f0f3ff;text-align:center;padding:14px;margin:24px 36px 0;border-radius:6px;">
+          <div style="color:#1a237e;font-size:14px;font-weight:800;letter-spacing:0.04em;">GRIEVANCE ACKNOWLEDGEMENT CERTIFICATE</div>
+        </div>
+        <div style="padding:16px 36px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px;border-bottom:1px solid #dce1f0;padding-bottom:16px;margin-bottom:20px;">
+          <div><strong style="color:#505064;">Reference No:</strong> ${refNo}</div>
+          <div><strong style="color:#505064;">Category:</strong> ${catDisplay}</div>
+          <div><strong style="color:#505064;">Language:</strong> ${String(detected_language || 'en-IN').toUpperCase()}</div>
+          <div><strong style="color:#505064;">Status:</strong> <span style="color:#138808;font-weight:700;">SUBMITTED &amp; ACKNOWLEDGED</span></div>
+        </div>
+        <div style="padding:0 36px;">
+          <div style="margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">AI Summary</div>
+            </div>
+            <div style="font-size:13px;line-height:1.8;color:#323246;padding-left:12px;">${reportData.summary || ''}</div>
+          </div>
+          ${stepsHtml}
+          ${officesHtml}
+          ${portalsHtml}
+        </div>
+        <div style="background:#1a237e;padding:14px 36px;color:#c8d2ff;font-size:10px;text-align:center;margin-top:24px;">
+          <div>This is a system-generated acknowledgement from BhashaFlow. For disputes, contact your district grievance office.</div>
+          <div style="color:#ff9933;margin-top:4px;font-weight:600;">© BhashaFlow Student Initiative  |  ${dateStr}  |  Ref: ${refNo}</div>
+        </div>
+      `;
+
+      document.body.appendChild(pdfHtml);
+
+      // html2canvas renders through browser fonts — supports all Indic scripts
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(pdfHtml, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      document.body.removeChild(pdfHtml);
+
+      // Place the rendered image into a jsPDF document
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const imgData = canvas.toDataURL('image/png');
+      const imgW = pdfW;
+      const imgH = (canvas.height * pdfW) / canvas.width;
+
+      // Multi-page support for long content
+      let position = 0;
+      let remaining = imgH;
+      while (remaining > 0) {
+        if (position > 0) pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, -position, imgW, imgH);
+        remaining -= pdfH;
+        position += pdfH;
+      }
+
+      pdf.save(`BhashaFlow_Grievance_${refNo}.pdf`);
+      setIsDownloading(false);
     } catch (err) {
       console.error('PDF Generation failed:', err);
       setIsDownloading(false);
-      window.print(); // Fallback
     }
   };
 
@@ -227,7 +330,7 @@ export default function AIAnalysis() {
 
   return (
     <DashboardLayout>
-      <div className="ai-page" id="ai-analysis-content">
+      <div className="ai-page">
 
         {/* Success banner */}
         <motion.div

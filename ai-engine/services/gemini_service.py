@@ -16,7 +16,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel, Field
 
-from .config import GEMINI_API_KEY, GEMINI_ENABLE_OCR_CLEANUP, GEMINI_ENABLE_OCR_SCRIPT_DETECTION, GEMINI_FALLBACK_MODELS, GEMINI_MODEL
+from .config import GEMINI_API_KEY, GEMINI_ENABLE_OCR_CLEANUP, GEMINI_ENABLE_OCR_SCRIPT_DETECTION, GEMINI_FALLBACK_MODELS, GEMINI_MODEL, LANG_NAMES, BCP47_TO_SHORT
 
 logger = logging.getLogger(__name__)
 
@@ -198,8 +198,13 @@ def analyze_with_gemini(english_text: str, detected_language: str) -> dict:
         logger.warning("Gemini not available - using fallback.")
         return _fallback(english_text)
 
+    # Resolve language code to human-readable name for Gemini
+    lang_short = BCP47_TO_SHORT.get(detected_language, detected_language)
+    lang_name = LANG_NAMES.get(lang_short, detected_language)
+    logger.info("Gemini prompt will use language: %s (%s)", lang_name, detected_language)
+
     prompt = f"""Analyze this citizen grievance submitted to an Indian government portal.
-Original language: {detected_language}
+Original language: {lang_name} (code: {detected_language})
 Grievance (in English): "{english_text}"
 
 Priority rules:
@@ -239,8 +244,15 @@ Categories Guide:
 - state_general: State CM issues, generic district administration
 - other: Any uncategorized issue
 
-For verification_sentence: write a short yes/no question in {detected_language} confirming the issue type.
-Example for hi-IN: 'kya yeh paani ki samasya hai?'"""
+IMPORTANT: For verification_sentence, you MUST write the question in {lang_name} language ONLY.
+Do NOT use Hindi unless the original language IS Hindi.
+Examples:
+- If original is Bengali: 'এটা কি পানির সমস্যা?'
+- If original is Tamil: 'இது தண்ணீர் பிரச்சனையா?'
+- If original is Hindi: 'क्या यह पानी की समस्या है?'
+- If original is Marathi: 'हा पाण्याचा प्रश्न आहे का?'
+- If original is Telugu: 'ఇది నీటి సమస్యా?'
+Write a short yes/no question confirming the issue type in {lang_name} script."""
 
     max_retries = 2
     base_delay = 2
@@ -334,9 +346,17 @@ def locate_nearby_offices(category: str, district: str, state: str) -> list[dict
         logger.warning("Gemini not available - returning empty offices.")
         return []
 
-    prompt = f"""Identify 3 to 4 specific government offices, authorities, or centers in {district}, {state}, India that handle '{category}' grievances.
-Name them correctly and provide realistic approximate latitude and longitude coordinates for these specific offices within {district}.
-Return a list of exactly these offices."""
+    prompt = f"""Identify 3 to 4 specific government offices, authorities, or centers that handle '{category}' grievances.
+
+CRITICAL LOCATION CONSTRAINT:
+- District: {district}
+- State: {state}
+- Country: India
+
+You MUST return offices located specifically in {district} district of {state} state.
+Do NOT return offices from Delhi, New Delhi, or any other city unless the user's state IS Delhi.
+Name them with their full address including the district name.
+Provide realistic approximate latitude and longitude coordinates for these specific offices within {district}, {state}."""
 
     for model in _model_candidates():
         try:

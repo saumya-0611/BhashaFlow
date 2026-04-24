@@ -85,15 +85,21 @@ export default function Sidebar({ isAdmin = false }) {
   ];
 
   const adminLinks = [
-    { name: 'Overview',       path: '/admin',             icon: 'dashboard'   },
-    { name: 'All Grievances', path: '/admin/grievances',  icon: 'description' },
-    { name: 'AI Insights',    path: '/admin/ai-insights', icon: 'psychology'  },
+    { name: 'Overview',        path: '/admin',             icon: 'dashboard'   },
+    { name: 'All Grievances',  path: '/admin/grievances',  icon: 'description' },
+    { name: 'AI Insights',     path: '/admin/ai-insights', icon: 'psychology'  },
   ];
 
-  const commonLinks = [
+  // Citizens see Help + Settings; Admins see Settings only
+  const citizenCommonLinks = [
     { name: 'Help',     path: '/help',     icon: 'help'     },
     { name: 'Settings', path: '/settings', icon: 'settings' },
   ];
+  const adminSystemLinks = [
+    { name: 'Settings',  path: '/settings',  icon: 'settings' },
+  ];
+
+  const commonLinks = isAdmin ? adminSystemLinks : citizenCommonLinks;
 
   const links = isAdmin ? adminLinks : citizenLinks;
   const userName = localStorage.getItem('userName') || 'Citizen';
@@ -154,7 +160,29 @@ export default function Sidebar({ isAdmin = false }) {
 
         <div className="nav-divider" />
 
-        <span className="nav-section-label">General</span>
+        <span className="nav-section-label">{isAdmin ? 'System' : 'General'}</span>
+        {commonLinks.map((link, i) => {
+          const isActive = location.pathname === link.path;
+          return (
+            <motion.div
+              key={link.name}
+              initial={isFirstSidebarLoad ? { opacity: 0, x: -16 } : false}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: isFirstSidebarLoad ? (links.length + i) * 0.05 + 0.1 : 0 }}
+            >
+              <Link
+                to={link.path}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={(e) => handleNavClick(e, link.path)}
+              >
+                <span className={`material-symbols-outlined ${isActive ? 'filled' : ''}`}>
+                  {link.icon}
+                </span>
+                {link.name}
+              </Link>
+            </motion.div>
+          );
+        })}
       </nav>
 
       {/* Bottom */}
@@ -198,10 +226,12 @@ export default function Sidebar({ isAdmin = false }) {
               <span className="material-symbols-outlined">settings</span>
               Settings
             </Link>
-            <Link to="/help" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-              <span className="material-symbols-outlined">help</span>
-              Help
-            </Link>
+            {!isAdmin && (
+              <Link to="/help" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
+                <span className="material-symbols-outlined">help</span>
+                Help
+              </Link>
+            )}
             <button onClick={handleLogout} className="user-menu-item logout">
               <span className="material-symbols-outlined">logout</span>
               Sign Out

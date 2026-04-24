@@ -18,7 +18,7 @@ from .config import GEMINI_ENABLE_OCR_SCRIPT_DETECTION, MAX_AUDIO_FILE_BYTES, MA
 from .gemini_service import analyze_with_gemini, analyze_with_gemini_fix_ocr, identify_scripts_with_gemini
 from .ocr_service import extract_text_from_image, get_preview_image_bytes
 from .speech_service import speech_to_text
-from .translate_service import get_language_name, translate_long_text
+from .translate_service import get_language_name, translate_long_text, _guess_source_language_code
 
 logger = logging.getLogger(__name__)
 
@@ -135,9 +135,15 @@ async def process_grievance_full(
         typed_text = text.strip()[:MAX_TEXT_CHARS]
         text_segments.append(f"Typed complaint:\n{typed_text}")
         input_types.append("text")
+        # Use Unicode script detection to identify the language from the text itself
         if detected_language in {"auto", "unknown"}:
-            detected_language = source_language_code
-        logger.info("Text input: chars=%d", len(typed_text))
+            guessed = _guess_source_language_code(typed_text)
+            if guessed:
+                detected_language = guessed
+                logger.info("Script detection guessed language: %s", detected_language)
+            else:
+                detected_language = source_language_code
+        logger.info("Text input: chars=%d, detected_lang=%s", len(typed_text), detected_language)
 
     if not text_segments:
         raise HTTPException(

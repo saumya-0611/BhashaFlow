@@ -9,11 +9,11 @@ const AUDIENCE_CARDS = [
   {
     icon: 'apartment',
     title: 'Urban Residents',
-    desc: 'Track real-time status of your complaints against public services and government departments.',
+    desc: 'Track real-time status of your complaints against public services and concerned authorities.',
   },
   {
     icon: 'account_balance',
-    title: 'Government Bodies',
+    title: 'Authorities',
     desc: 'Receive AI-categorized, pre-vetted complaints routed directly to your department.',
   },
   {
@@ -25,7 +25,7 @@ const AUDIENCE_CARDS = [
 
 const ABOUT_TAGS = [
   '22 Indian Languages', 'AI-Powered Routing', 'End-to-End Tracking',
-  'Multilingual Support', 'Free to Use', 'Government Backed',
+  'Multilingual Support', 'Free to Use', 'Student Initiative',
 ];
 
 export default function AboutSection() {
@@ -42,7 +42,7 @@ export default function AboutSection() {
             BhashaFlow is India's first AI-driven multilingual grievance redressal system.
             Citizens can file complaints in <strong style={{ color: '#ff9933' }}>any of 22 scheduled languages</strong>,
             and our AI automatically translates, categorizes, and routes them to the correct
-            government department — eliminating the language barrier that has long excluded
+            concerned authority — eliminating the language barrier that has long excluded
             millions of Indians from public services.
           </p>
           <p className="about-body" style={{ marginBottom: 24 }}>

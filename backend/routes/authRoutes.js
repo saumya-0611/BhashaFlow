@@ -156,6 +156,56 @@ router.post('/change-password', auth, async (req, res) => {
   }
 });
 
+// ─── GET PROFILE (LOGGED IN USER) ──────────────────────────────
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId).select('-password -twoFactorSecret -resetPasswordToken -resetPasswordExpires');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.status(200).json({ user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ─── UPDATE PROFILE (LOGGED IN USER) ───────────────────────────
+router.put('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { name, email, phone, preferred_language } = req.body;
+
+    // Only update fields that were actually sent
+    if (name !== undefined)               user.name = name;
+    if (email !== undefined)              user.email = email;
+    if (phone !== undefined)              user.phone = phone;
+    if (preferred_language !== undefined)  user.preferred_language = preferred_language;
+
+    await user.save();
+
+    // Update localStorage-facing response
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        preferred_language: user.preferred_language,
+        role: user.role,
+        isTwoFactorEnabled: user.isTwoFactorEnabled,
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    // Duplicate email
+    if (err.code === 11000) {
+      return res.status(400).json({ message: 'This email is already registered to another account.' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // ─── 2FA GENERATE ─────────────────────────────────────────────
 router.post('/2fa/generate', auth, async (req, res) => {
   try {

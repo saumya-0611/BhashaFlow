@@ -346,7 +346,7 @@
 
 .auth-form-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
   position: relative;
   z-index: 1;
 }
@@ -434,18 +434,18 @@
 
 .input-field {
   width: 100%;
-  padding: 12px 14px;
+  padding: 14px 16px;
   background: var(--surface-container-high);
   border: 1.5px solid transparent;
   border-radius: 11px;
   font-family: 'Plus Jakarta Sans', var(--font-body);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--on-surface);
   transition: all 0.2s ease;
   outline: none;
 }
 
-.input-field.has-icon { padding-left: 42px; }
+.input-field.has-icon { padding-left: 44px; }
 
 .input-field:focus {
   background: var(--surface-container-lowest);
@@ -456,7 +456,7 @@
 .input-field:focus + .input-icon,
 .input-wrapper:focus-within .input-icon { color: #3949ab; }
 
-.input-field::placeholder { color: var(--outline); font-size: 13px; }
+.input-field::placeholder { color: var(--outline); font-size: 14px; }
 
 .toggle-eye {
   position: absolute;
