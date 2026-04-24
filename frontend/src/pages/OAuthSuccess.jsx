@@ -3,7 +3,7 @@
  * Route: /auth/oauth-success
  *
  * Google redirects the browser here after OAuth with the JWT in the URL hash:
- *   http://localhost:3000/auth/oauth-success#token=xxx&name=Rajesh&role=citizen
+ *   http://localhost:3000/auth/oauth-success#token=xxx&name=Rajesh&role=citizen&email=rajesh@example.com
  *
  * This page reads the hash, stores the token, and navigates to /dashboard.
  * It is never shown to the user — it flashes for one frame at most.
@@ -24,6 +24,7 @@ export default function OAuthSuccess() {
     const token = params.get('token');
     const name  = params.get('name');
     const role  = params.get('role');
+    const email = params.get('email');
 
     if (!token) {
       // Something went wrong — send back to auth with an error flag
@@ -34,6 +35,7 @@ export default function OAuthSuccess() {
     // Store exactly the same keys the rest of the app uses
     localStorage.setItem('token', token);
     localStorage.setItem('userName', decodeURIComponent(name || 'Citizen'));
+    localStorage.setItem('userEmail', decodeURIComponent(email || ''));
     localStorage.setItem('userRole', role || 'citizen');
 
     // Clear the hash from the URL so the token is never visible in history
