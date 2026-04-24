@@ -3,6 +3,7 @@ import auth from '../middleware/auth.js';
 import Grievance from '../models/Grievance.js';
 import AiAnalysis from '../models/AiAnalysis.js';
 import StatusUpdate from '../models/StatusUpdate.js';
+import User from '../models/User.js';
 
 const router = express.Router();
 
@@ -37,6 +38,7 @@ router.get('/grievances', async (req, res) => {
 
     const [grievances, total] = await Promise.all([
       Grievance.find(filter)
+        .populate('user_id', 'name email')
         .sort({ [sort_by]: sortDirection })
         .skip(skip)
         .limit(limitNum),
@@ -51,6 +53,10 @@ router.get('/grievances', async (req, res) => {
 
     const result = grievances.map(g => ({
       ...g.toObject(),
+      user: g.user_id ? {
+        name: g.user_id.name,
+        email: g.user_id.email,
+      } : null,
       ai_analysis: analysisMap[g._id.toString()] || null,
     }));
 
@@ -76,12 +82,14 @@ router.get('/grievance/:id', async (req, res) => {
     if (!grievance) return res.status(404).json({ message: 'Grievance not found' });
 
     const aiAnalysis    = await AiAnalysis.findOne({ grievance_id: grievance._id });
+    const citizen = grievance.user_id ? await User.findById(grievance.user_id).select('name email phone') : null;
     // FIX: key is status_timeline to match GrievanceDetail.jsx
     const statusTimeline = await StatusUpdate.find({ grievance_id: grievance._id })
       .sort({ updated_at: 1 });
 
     res.status(200).json({
       grievance:       grievance.toObject(),
+      citizen:         citizen || null,
       ai_analysis:     aiAnalysis || null,
       status_timeline: statusTimeline,
     });
@@ -213,8 +221,8 @@ router.get('/ai-insights', async (req, res) => {
     const [totalAnalyses, avgConfidence, categoriesAnalyzed, portalsFound] = await Promise.all([
       AiAnalysis.countDocuments(),
       AiAnalysis.aggregate([{ $group: { _id: null, avg: { $avg: '$confidence_score' } } }]),
-      AiAnalysis.distinct('category'),
-      AiAnalysis.aggregate([{ $unwind: '$portal_links' }, { $count: 'total' }]),
+      AiAnalysis.distinct('llm_category'),
+      Grievance.countDocuments({ portal_links: { $ne: null } }),
     ]);
 
     const avgConf = avgConfidence.length > 0 ? avgConfidence[0].avg : 0;
