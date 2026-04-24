@@ -76,7 +76,7 @@
 /* Textarea */
 .grievance-textarea {
   resize: vertical;
-  min-height: 190px;
+  min-height: 240px;
   border-radius: 14px;
   padding: 18px;
   font-size: 14px;
@@ -204,13 +204,17 @@
 .upload-zone {
   border: 2px dashed var(--outline-variant);
   border-radius: 16px;
-  padding: 30px 20px;
+  min-height: 240px;
+  padding: 36px 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.22s ease;
   background: var(--surface-container-lowest);
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .upload-zone:hover,
