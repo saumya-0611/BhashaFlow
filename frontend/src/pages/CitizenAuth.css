@@ -346,7 +346,7 @@
 
 .auth-form-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
   position: relative;
   z-index: 1;
 }
@@ -434,7 +434,8 @@
 
 .input-field {
   width: 100%;
-  padding: 12px 14px;
+  min-height: 54px;
+  padding: 15px 16px;
   background: var(--surface-container-high);
   border: 1.5px solid transparent;
   border-radius: 11px;
@@ -445,7 +446,7 @@
   outline: none;
 }
 
-.input-field.has-icon { padding-left: 42px; }
+.input-field.has-icon { padding-left: 46px; }
 
 .input-field:focus {
   background: var(--surface-container-lowest);
