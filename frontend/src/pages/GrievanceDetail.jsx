@@ -14,6 +14,7 @@ export default function GrievanceDetail() {
   // FIX: backend returns ai_analysis and status_timeline as separate top-level keys
   const [aiAnalysis, setAiAnalysis]     = useState(null);
   const [statusTimeline, setTimeline]   = useState([]);
+  const [citizen, setCitizen]           = useState(null);
   const [loading, setLoading]           = useState(true);
 
   const [remark, setRemark]             = useState('');
@@ -30,6 +31,7 @@ export default function GrievanceDetail() {
         setGrievance(res.data.grievance);
         setAiAnalysis(res.data.ai_analysis || null);
         setTimeline(res.data.status_timeline || []);
+        setCitizen(res.data.citizen || null);
       } catch (err) {
         alert(err.response?.data?.message || 'Failed to fetch grievance');
         navigate(-1);
@@ -283,7 +285,8 @@ export default function GrievanceDetail() {
                 </div>
                 {/* FIX: citizen contact stored directly on Grievance as user_name, user_phone */}
                 <p><strong>Name:</strong> {grievance.user_name || 'Anonymous'}</p>
-                <p><strong>Phone:</strong> {grievance.user_phone || 'N/A'}</p>
+                <p><strong>Phone:</strong> {grievance.user_phone || citizen?.phone || 'N/A'}</p>
+                <p><strong>Email:</strong> {citizen?.email || 'N/A'}</p>
               </div>
             )}
           </aside>
