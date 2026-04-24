@@ -3,6 +3,15 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import './TopBar.css';
 
+const STATUS_LABELS = {
+  pending: 'Pending review',
+  processing: 'Being processed',
+  open: 'Submitted',
+  in_progress: 'In progress',
+  resolved: 'Resolved',
+  closed: 'Closed',
+};
+
 export default function TopBar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -54,6 +63,7 @@ export default function TopBar() {
 
   const breadcrumbs = getBreadcrumbs();
   const userName = localStorage.getItem('userName') || 'Citizen';
+  const userEmail = localStorage.getItem('userEmail') || '';
   const userRole = localStorage.getItem('userRole');
 
   // Utility to convert date to human-readable format
@@ -68,35 +78,37 @@ export default function TopBar() {
       try {
         let res;
         if (userRole === 'admin' || userRole === 'authority') {
-          res = await api.get('/api/admin/grievances?page=1&limit=5&status=pending');
-          const notifs = res.data.grievances.map(g => ({
+          res = await api.get('/api/admin/grievances?page=1&limit=5');
+          const notifs = (res.data.grievances || []).map(g => ({
             id: g._id,
-            message: `New grievance: ${g.title || 'Untitled'}`,
+            title: g.title || 'Untitled grievance',
+            message: `${STATUS_LABELS[g.status] || 'Needs review'}${g.user?.email ? ` • ${g.user.email}` : ''}`,
             time: timeAgo(g.submitted_at),
             link: `/grievance/${g._id}`,
-            unread: true
+            unread: !['resolved', 'closed'].includes(g.status),
           }));
           setNotifications(notifs);
-          setUnreadCount(notifs.length);
+          setUnreadCount(notifs.filter(notif => notif.unread).length);
         } else {
           res = await api.get('/api/grievance/recent');
           const grievances = res.data.grievances || [];
-          const notifs = grievances.filter(g => g.status !== 'resolved' && g.status !== 'closed').map(g => ({
+          const notifs = grievances.map(g => ({
             id: g._id,
-            message: `Update on grievance: ${g.title || 'Untitled'} - ${g.status}`,
+            title: g.title || 'Untitled grievance',
+            message: `${STATUS_LABELS[g.status] || 'Status updated'}${userEmail ? ` • ${userEmail}` : ''}`,
             time: timeAgo(g.submitted_at),
             link: `/grievance/${g._id}`,
-            unread: true
+            unread: !['resolved', 'closed'].includes(g.status),
           }));
           setNotifications(notifs);
-          setUnreadCount(notifs.length);
+          setUnreadCount(notifs.filter(notif => notif.unread).length);
         }
       } catch (err) {
         console.error('Failed to fetch notifications', err);
       }
     };
     fetchNotifications();
-  }, [userRole]);
+  }, [userEmail, userRole]);
 
   return (
     <header className="topbar">
@@ -130,8 +142,9 @@ export default function TopBar() {
               <div className="notif-list">
                 {notifications.length > 0 ? notifications.map(notif => (
                   <Link key={notif.id} to={notif.link} className="notif-item" onClick={() => setShowNotif(false)}>
-                    <p>{notif.message}</p>
-                    <span>{notif.time}</span>
+                    <p>{notif.title}</p>
+                    <span>{notif.message}</span>
+                    <small>{notif.time}</small>
                   </Link>
                 )) : (
                   <p className="no-notifs">No new notifications</p>
