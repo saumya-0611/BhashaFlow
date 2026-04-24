@@ -14,7 +14,6 @@ export default function Sidebar({ isAdmin = false }) {
   const [showModal, setShowModal]   = useState(false);
   const [pendingPath, setPendingPath] = useState(null);
   const [deleting, setDeleting]     = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileOpen, setMobileOpen]     = useState(false);
 
   const isFlowPath = (path) =>
@@ -83,10 +82,15 @@ export default function Sidebar({ isAdmin = false }) {
     { name: 'AI Insights',    path: '/admin/ai-insights', icon: 'psychology'  },
   ];
 
-  const commonLinks = [
-    { name: 'Help',     path: '/help',     icon: 'help'     },
-    { name: 'Settings', path: '/settings', icon: 'settings' },
-  ];
+  const quickLinks = isAdmin
+    ? [
+        { name: 'Settings', path: '/settings', icon: 'settings' },
+        { name: 'Help', path: '/help', icon: 'help' },
+      ]
+    : [
+        { name: 'Settings', path: '/settings', icon: 'settings' },
+        { name: 'Help', path: '/help', icon: 'help' },
+      ];
 
   const links = isAdmin ? adminLinks : citizenLinks;
   const userName = localStorage.getItem('userName') || 'Citizen';
@@ -144,31 +148,11 @@ export default function Sidebar({ isAdmin = false }) {
             </motion.div>
           );
         })}
-
-        <div className="nav-divider" />
-
-        <span className="nav-section-label">General</span>
       </nav>
 
       {/* Bottom */}
       <div className="sidebar-bottom">
-        {isAdmin && (
-          <div className="operational-health">
-            <span className="health-title">Operational Health</span>
-            <div className="health-bar-bg">
-              <motion.div
-                className="health-bar-fill"
-                initial={{ width: 0 }}
-                animate={{ width: '88%' }}
-                transition={{ delay: 0.8, duration: 1, ease: [0.4, 0, 0.2, 1] }}
-              />
-            </div>
-            <span className="health-value">88% Capacity</span>
-          </div>
-        )}
-
-        {/* User profile */}
-        <div className="user-profile-sidebar" onClick={() => setShowUserMenu(!showUserMenu)}>
+        <div className="user-profile-sidebar">
           <div style={{
             width: 30, height: 30, borderRadius: '50%',
             background: 'var(--primary-fixed)', color: 'var(--on-primary-fixed)',
@@ -180,27 +164,20 @@ export default function Sidebar({ isAdmin = false }) {
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--on-surface)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {userName}
           </span>
-          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--outline)', marginLeft: 'auto' }}>
-            {showUserMenu ? 'expand_less' : 'expand_more'}
-          </span>
         </div>
 
-        {showUserMenu && (
-          <div className="user-menu">
-            <Link to="/settings" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-              <span className="material-symbols-outlined">settings</span>
-              Settings
+        <div className="user-menu">
+          {quickLinks.map((link) => (
+            <Link key={link.name} to={link.path} className="user-menu-item" onClick={closeMobile}>
+              <span className="material-symbols-outlined">{link.icon}</span>
+              {link.name}
             </Link>
-            <Link to="/help" className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-              <span className="material-symbols-outlined">help</span>
-              Help
-            </Link>
-            <button onClick={handleLogout} className="user-menu-item logout">
-              <span className="material-symbols-outlined">logout</span>
-              Sign Out
-            </button>
-          </div>
-        )}
+          ))}
+          <button onClick={handleLogout} className="user-menu-item logout">
+            <span className="material-symbols-outlined">logout</span>
+            Sign Out
+          </button>
+        </div>
       </div>
     </>
   );
