@@ -106,7 +106,7 @@ router.get(
     // Redirect to frontend with token in URL fragment (never in query string)
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     res.redirect(
-      `${frontendUrl}/auth/oauth-success#token=${token}&name=${encodeURIComponent(user.name)}&role=${user.role}`
+      `${frontendUrl}/auth/oauth-success#token=${token}&name=${encodeURIComponent(user.name)}&role=${user.role}&email=${encodeURIComponent(user.email || '')}`
     );
   }
 );
