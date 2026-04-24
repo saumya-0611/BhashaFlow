@@ -8,9 +8,10 @@ Improvements:
 """
 
 import logging
-import re
+import concurrent.futures
 import time
-from typing import Literal
+import re
+from typing import Literal, Optional
 
 from google import genai
 from google.genai import types
@@ -49,7 +50,7 @@ class GrievanceAnalysis(BaseModel):
     confidence_score: float = Field(ge=0.0, le=1.0, description="Confidence between 0.70 and 0.99")
 
 
-def _fallback(english_text: str) -> dict:
+def _fallback(english_text: str, detected_language: str = "en-IN") -> dict:
     lower_text = english_text.lower()
     category_keywords = {
         "electricity_water": ("electricity", "power cut", "water", "bill", "supply"),
@@ -72,10 +73,26 @@ def _fallback(english_text: str) -> dict:
             keywords = matched[:5]
             break
 
+    # Native fallback questions
+    native_q = {
+        "hi-IN": "क्या यह जानकारी सही है?",
+        "bn-IN": "এই তথ্য কি সঠিক?",
+        "mr-IN": "ही माहिती बरोबर आहे का?",
+        "ta-IN": "இந்த தகவல் சரியானதா?",
+        "te-IN": "ఈ సమాచారం సరైనదేనా?",
+        "kn-IN": "ಈ ಮಾಹಿತಿ ಸರಿಯಿದೆಯೇ?",
+        "gu-IN": "શું આ માહિતી સાચી છે?",
+        "ml-IN": "ഈ വിവരം ശരിയാണോ?",
+        "pa-IN": "ਕੀ ਇਹ ਜਾਣਕਾਰੀ ਸਹੀ ਹੈ?",
+    }
+    
+    lang_short = BCP47_TO_SHORT.get(detected_language, detected_language)
+    verification = native_q.get(detected_language, native_q.get(lang_short, "Is this information correct?"))
+
     return {
         "title": english_text[:60].strip(),
         "english_summary": english_text,
-        "verification_sentence": "Is this correct?",
+        "verification_sentence": verification,
         "category": category,
         "keywords": keywords,
         "confidence_score": 0.5,
@@ -196,7 +213,7 @@ def analyze_with_gemini(english_text: str, detected_language: str) -> dict:
     """
     if _client is None:
         logger.warning("Gemini not available - using fallback.")
-        return _fallback(english_text)
+        return _fallback(english_text, detected_language)
 
     # Resolve language code to human-readable name for Gemini
     lang_short = BCP47_TO_SHORT.get(detected_language, detected_language)
@@ -260,24 +277,36 @@ Write a short yes/no question confirming the issue type in {lang_name} script.""
     for model in _model_candidates():
         for attempt in range(max_retries):
             try:
-                response = _client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=(
-                            "You are an AI assistant for BhashaFlow, an Indian government "
-                            "citizen grievance portal. Analyze complaints and extract structured data."
+                GEMINI_TIMEOUT = 40  # seconds per model attempt
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(
+                        _client.models.generate_content,
+                        model=model,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=(
+                                "You are an AI assistant for BhashaFlow, an Indian government "
+                                "citizen grievance portal. Analyze complaints and extract structured data."
+                            ),
+                            response_mime_type="application/json",
+                            response_schema=GrievanceAnalysis,
+                            temperature=0.2,
                         ),
-                        response_mime_type="application/json",
-                        response_schema=GrievanceAnalysis,
-                        temperature=0.2,
-                    ),
-                )
+                    )
+                    try:
+                        response = future.result(timeout=GEMINI_TIMEOUT)
+                    except concurrent.futures.TimeoutError:
+                        logger.warning(
+                            "Gemini %s timed out after %ds - trying next model.",
+                            model, GEMINI_TIMEOUT
+                        )
+                        break
 
                 parsed: GrievanceAnalysis = response.parsed
                 if parsed is None:
                     logger.warning("Gemini returned no parsed object - using fallback.")
-                    return _fallback(english_text)
+                    return _fallback(english_text, detected_language)
 
                 logger.info(
                     "Gemini done with %s: category=%s, confidence=%.2f",
@@ -329,7 +358,7 @@ Write a short yes/no question confirming the issue type in {lang_name} script.""
                 return _fallback(english_text)
 
     logger.error("Gemini failed for all configured models - using fallback.")
-    return _fallback(english_text)
+    return _fallback(english_text, detected_language)
 
 
 class OfficeLocation(BaseModel):

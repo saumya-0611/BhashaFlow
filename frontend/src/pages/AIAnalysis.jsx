@@ -191,7 +191,7 @@ export default function AIAnalysis() {
         ? `<div style="margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
               <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
-              <div style="color:#1a237e;font-size:14px;font-weight:800;">Next Steps</div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">${isNonEnglish && nativeData ? 'Next Steps / अगले कदम' : 'Next Steps'}</div>
             </div>
             <ol style="font-size:13px;line-height:1.8;color:#323246;padding-left:30px;margin:0;">
               ${reportData.steps.map(s => `<li style="margin-bottom:4px;">${s}</li>`).join('')}
@@ -202,7 +202,7 @@ export default function AIAnalysis() {
         ? `<div style="margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
               <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
-              <div style="color:#1a237e;font-size:14px;font-weight:800;">Nearby Offices</div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">${isNonEnglish && nativeData ? 'Nearby Offices / नजदीकी कार्यालय' : 'Nearby Offices'}</div>
             </div>
             <ul style="font-size:13px;line-height:1.8;color:#323246;padding-left:30px;margin:0;">
               ${reportData.offices.map(o => `<li>${String(o)}</li>`).join('')}
@@ -213,7 +213,7 @@ export default function AIAnalysis() {
         ? `<div style="margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
               <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
-              <div style="color:#1a237e;font-size:14px;font-weight:800;">Relevant Government Portals</div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">${isNonEnglish && nativeData ? 'Government Portals / सरकारी पोर्टल' : 'Relevant Government Portals'}</div>
             </div>
             ${portalsArray.map(p => `
               <div style="padding-left:12px;margin-bottom:8px;">
@@ -247,7 +247,7 @@ export default function AIAnalysis() {
           <div style="margin-bottom:20px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
               <div style="width:4px;height:20px;background:#1a237e;border-radius:2px;"></div>
-              <div style="color:#1a237e;font-size:14px;font-weight:800;">AI Summary</div>
+              <div style="color:#1a237e;font-size:14px;font-weight:800;">${isNonEnglish && nativeData ? 'AI Analysis / AI विश्लेषण' : 'AI Summary'}</div>
             </div>
             <div style="font-size:13px;line-height:1.8;color:#323246;padding-left:12px;">${reportData.summary || ''}</div>
           </div>

@@ -5,13 +5,30 @@ import nodemailer from 'nodemailer';
  * Uses App Password (NOT your actual Gmail password).
  * Generate at: Google Account → Security → 2FA → App Passwords → Mail
  */
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
+const MAIL_ENABLED = !!(process.env.GMAIL_USER && process.env.GMAIL_PASS);
+
+if (!MAIL_ENABLED) {
+  console.warn('⚠️  [Mailer] GMAIL_USER or GMAIL_PASS not set — email notifications disabled.');
+}
+
+const transporter = MAIL_ENABLED
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_PASS
+      }
+    })
+  : null;
+
+// Helper — safely send mail or skip gracefully
+async function _send(options) {
+  if (!MAIL_ENABLED || !transporter) {
+    console.warn(`⚠️  [Mailer] Email skipped (not configured): to=${options.to}, subject="${options.subject}"`);
+    return { messageId: 'skipped' };
   }
-});
+  return transporter.sendMail(options);
+}
 
 /**
  * Send follow-up email to citizen asking if their grievance is resolved.
@@ -78,7 +95,7 @@ export async function sendFollowUpEmail(to, grievanceId, category, title) {
     `
   };
 
-  const info = await transporter.sendMail(mailOptions);
+  const info = await _send(mailOptions);
   console.log(`📧 Follow-up email sent to ${to} — MessageID: ${info.messageId}`);
   return info;
 }
@@ -169,7 +186,7 @@ export async function sendResolutionEmail(to, grievanceId, category, title, admi
     `
   };
 
-  const info = await transporter.sendMail(mailOptions);
+  const info = await _send(mailOptions);
   console.log(`📧 Resolution email sent to ${to} — MessageID: ${info.messageId}`);
   return info;
 }
@@ -226,9 +243,10 @@ export async function sendPasswordResetEmail(to, token) {
     `
   };
 
-  const info = await transporter.sendMail(mailOptions);
+  const info = await _send(mailOptions);
   console.log(`📧 Password reset email sent to ${to} — MessageID: ${info.messageId}`);
   return info;
 }
 
+export { MAIL_ENABLED };
 export default transporter;

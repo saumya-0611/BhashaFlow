@@ -37,28 +37,32 @@ def _resolve_lang_code(code: str) -> str:
 
 
 def _guess_source_language_code(text: str) -> Optional[str]:
-    """Guess a reasonable Sarvam source language code from text script."""
-    if re.search(r"[\u0900-\u097F]", text):
-        return "hi-IN"
-    if re.search(r"[\u0980-\u09FF]", text):
-        return "bn-IN"
-    if re.search(r"[\u0A00-\u0A7F]", text):
-        return "pa-IN"
-    if re.search(r"[\u0A80-\u0AFF]", text):
-        return "gu-IN"
-    if re.search(r"[\u0B00-\u0B7F]", text):
-        return "od-IN"
-    if re.search(r"[\u0B80-\u0BFF]", text):
-        return "ta-IN"
-    if re.search(r"[\u0C00-\u0C7F]", text):
-        return "te-IN"
-    if re.search(r"[\u0C80-\u0CFF]", text):
-        return "kn-IN"
-    if re.search(r"[\u0D00-\u0D7F]", text):
-        return "ml-IN"
-    if re.search(r"[\u0600-\u06FF]", text):
-        return "ur-IN"
-    if re.search(r"[A-Za-z0-9]", text) and not re.search(r"[\u0900-\u0DFF]", text):
+    """Guess a reasonable Sarvam source language code from text script.
+
+    Uses character-count majority voting so a mixed snippet (e.g. Bengali text
+    that also contains some ASCII punctuation) is classified correctly instead
+    of defaulting to the first matching block.
+    """
+    script_counts = {
+        "hi-IN": len(re.findall(r"[\u0900-\u097F]", text)),   # Devanagari (Hindi/Marathi/Nepali)
+        "bn-IN": len(re.findall(r"[\u0980-\u09FF]", text)),   # Bengali
+        "pa-IN": len(re.findall(r"[\u0A00-\u0A7F]", text)),   # Gurmukhi (Punjabi)
+        "gu-IN": len(re.findall(r"[\u0A80-\u0AFF]", text)),   # Gujarati
+        "od-IN": len(re.findall(r"[\u0B00-\u0B7F]", text)),   # Odia
+        "ta-IN": len(re.findall(r"[\u0B80-\u0BFF]", text)),   # Tamil
+        "te-IN": len(re.findall(r"[\u0C00-\u0C7F]", text)),   # Telugu
+        "kn-IN": len(re.findall(r"[\u0C80-\u0CFF]", text)),   # Kannada
+        "ml-IN": len(re.findall(r"[\u0D00-\u0D7F]", text)),   # Malayalam
+        "ur-IN": len(re.findall(r"[\u0600-\u06FF]", text)),   # Arabic/Urdu
+    }
+
+    # Pick the script with the most matching characters
+    best_lang, best_count = max(script_counts.items(), key=lambda x: x[1])
+    if best_count > 0:
+        return best_lang
+
+    # Fallback: pure Latin/ASCII → English
+    if re.search(r"[A-Za-z0-9]", text):
         return "en-IN"
     return None
 
@@ -96,6 +100,11 @@ def translate_text(
                 guessed,
             )
             source_bcp47 = guessed
+
+    # Skip API call if source and target are the same language
+    if source_bcp47 != "auto" and source_bcp47 == target_bcp47:
+        logger.info("Source and target are both %s — skipping translation.", source_bcp47)
+        return {"translated_text": text, "source_language_code": source_bcp47}
 
     payload = {
         "input": text,
