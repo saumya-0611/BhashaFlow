@@ -197,12 +197,7 @@
   margin-bottom: 4px;
   border-radius: 10px;
   background: var(--surface-container-low);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.user-profile-sidebar:hover {
-  background: var(--surface-container-high);
+  cursor: default;
 }
 
 .user-menu {
@@ -243,7 +238,6 @@
 .user-menu-item.logout .material-symbols-outlined {
   color: var(--error);
 }
-}
 
 .nav-divider {
   height: 1px;
@@ -257,43 +251,6 @@
   padding: 12px 10px;
   border-top: 1px solid var(--outline-variant);
   flex-shrink: 0;
-}
-
-.operational-health {
-  margin-bottom: 8px;
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--surface-container-low);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.health-title {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--on-surface-variant);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.health-bar-bg {
-  height: 5px;
-  background: var(--surface-dim);
-  border-radius: 99px;
-  overflow: hidden;
-}
-
-.health-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--saffron), #e07010);
-  border-radius: 99px;
-  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.health-value {
-  font-size: 11px;
-  color: var(--on-surface-variant);
 }
 
 .logout-btn {
