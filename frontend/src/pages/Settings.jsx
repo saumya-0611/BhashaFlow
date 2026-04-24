@@ -25,6 +25,14 @@ export default function Settings() {
   const [is2FAEnabled, setIs2FAEnabled] = useState(false);
 
   useEffect(() => {
+    setUserName(localStorage.getItem('userName') || '');
+    setEmail(localStorage.getItem('userEmail') || '');
+    setNotifications(localStorage.getItem('notifications') !== 'false');
+    setDarkMode(localStorage.getItem('darkMode') === 'true');
+    setLanguage(localStorage.getItem('language') || 'en');
+  }, []);
+
+  useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
