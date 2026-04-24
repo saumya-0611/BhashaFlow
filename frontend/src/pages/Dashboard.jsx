@@ -120,7 +120,7 @@ export default function Dashboard() {
             <p className="dash-sub">Your voice matters. Monitoring your civic contributions.</p>
           </div>
           <div className="dash-hero-action">
-            <Link to="/submit" className="dash-cta">
+            <Link to="/submit" className="dash-file-cta">
               <span className="material-symbols-outlined">add</span>
               File Grievance
             </Link>

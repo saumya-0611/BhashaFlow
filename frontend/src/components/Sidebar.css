@@ -70,38 +70,40 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  background: linear-gradient(155deg, #080f25 0%, #142a63 52%, #1b2f75 100%);
 }
 
-.sidebar-brand-icon {
+.sidebar-logo-mark {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  background: var(--primary);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ff9933 0%, #1a237e 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-}
-
-.sidebar-brand-icon .material-symbols-outlined {
   font-size: 18px;
-  color: var(--saffron);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(255,153,51,0.4);
 }
 
 .sidebar-brand-text h2 {
-  font-family: var(--font-display);
+  font-family: 'Public Sans', sans-serif;
   font-size: 16px;
   font-weight: 800;
-  color: var(--primary);
+  color: #ffffff;
   letter-spacing: -0.01em;
   line-height: 1.2;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
 }
 
 .sidebar-brand-text .subtitle {
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--on-surface-variant);
+  color: rgba(255,255,255,0.78);
   font-weight: 600;
   margin-top: 1px;
 }

@@ -108,12 +108,10 @@ export default function Sidebar({ isAdmin = false }) {
     <>
       {/* Brand */}
       <div className="sidebar-brand surface-highest">
-        <div className="sidebar-brand-icon">
-          <span className="material-symbols-outlined filled">language</span>
-        </div>
+        <div className="sidebar-logo-mark notranslate" translate="no">भ</div>
         <div className="sidebar-brand-text">
           <h2>BhashaFlow</h2>
-          <span className="subtitle">{isAdmin ? 'Admin Portal' : 'Citizen Portal'}</span>
+          <span className="subtitle">Citizen Grievance Portal</span>
         </div>
         {/* Mobile close button */}
         <button

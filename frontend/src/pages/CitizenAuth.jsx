@@ -283,10 +283,11 @@ export default function CitizenAuth() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
           >
-            <div className="auth-logo-badge">
-              <span className="material-symbols-outlined filled">language</span>
+            <div className="auth-logo-mark notranslate" translate="no">भ</div>
+            <div className="auth-logo-text">
+              <span className="auth-logo-name">BhashaFlow</span>
+              <span className="auth-logo-tagline">Citizen Grievance Portal</span>
             </div>
-            <h1 className="auth-logo-text">Bhasha<span>Flow</span></h1>
           </motion.div>
 
           {/* Language ticker */}
