@@ -178,6 +178,7 @@ export default function CitizenAuth() {
   const saveSession = (data) => {
     localStorage.setItem('token',    data.token);
     localStorage.setItem('userName', data.user.name);
+    localStorage.setItem('userEmail', data.user.email || '');
     localStorage.setItem('userRole', data.user.role);
   };
 
